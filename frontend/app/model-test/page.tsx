@@ -9,7 +9,6 @@ import { Experience } from '../components/Experience'
 
 export default function Page() {
 
-  // Define assets with Lucide icons
   const assets = [
     { 
       id: 'cube', 

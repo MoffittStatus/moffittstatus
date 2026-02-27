@@ -13,7 +13,6 @@ import {
 import dynamic from 'next/dynamic';
 const Experience = dynamic(() => import('../components/Experience').then(mod => mod.Experience), { ssr: false });
 
-// --- Types ---
 interface Achievement {
   id: string;
   title: string;
@@ -34,10 +33,8 @@ interface Quest {
 }
 
 const RewardsPage: React.FC = () => {
-  // Mock State
   const userPoints = 450;
   
-  // --- Data: Daily Quests (Ways to earn points) ---
   const quests: Quest[] = [
     {
       id: '1',
@@ -53,14 +50,13 @@ const RewardsPage: React.FC = () => {
     }
   ];
 
-  // --- Data: Achievements (Snackpass Style) ---
   const achievements: Achievement[] = [
     {
       id: '1',
       title: 'First Scout',
       description: 'Submit your first busyness report',
       icon: <BookOpen className="w-6 h-6" />,
-      isUnlocked: true, // User has done this
+      isUnlocked: true,
     },
     {
       id: '2',
@@ -75,7 +71,7 @@ const RewardsPage: React.FC = () => {
       description: 'Submit 5 reports',
       icon: <Award className="w-6 h-6" />,
       isUnlocked: false,
-      progress: { current: 2, total: 5 } // 2 out of 5 done
+      progress: { current: 2, total: 5 }
     },
     {
       id: '4',
@@ -83,7 +79,7 @@ const RewardsPage: React.FC = () => {
       description: 'Reach a 5-day Streak',
       icon: <Star className="w-6 h-6" />,
       isUnlocked: false,
-      progress: { current: 2, total: 5 } // Points progress
+      progress: { current: 2, total: 5 }
     }
   ];
 
@@ -105,7 +101,7 @@ const RewardsPage: React.FC = () => {
           </div> */}
         </header>
 
-        {/* Section 1: Daily Quests (Quick Actions) */}
+        {/* Daily Quests */}
         <div className="mb-8">
           <h2 className="text-lg font-bold text-gray-800 mb-3 px-1">Daily Quests</h2>
           <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
@@ -128,7 +124,7 @@ const RewardsPage: React.FC = () => {
         <div className='mt-20 mb-10 w-full'>
         <Experience asset={'Achievements'}  />
         </div>
-        {/* Section 2: Achievements (The "Snackpass" Grid) */}
+        {/* Achievements */}
         <div className="mb-20">
           <h2 className="text-lg font-bold text-gray-800 mb-3 px-1">Collection</h2>
           <div className="grid grid-cols-2 gap-3">
@@ -158,7 +154,7 @@ const RewardsPage: React.FC = () => {
                   {item.description}
                 </p>
 
-                {/* Progress Bar (Only if locked and has progress) */}
+                {/* Progress Bar */}
                 {!item.isUnlocked && item.progress && (
                   <div className="w-full">
                     <div className="flex justify-between text-[10px] text-gray-500 font-bold mb-1">

@@ -56,21 +56,15 @@ async function getAllLibraryHours() {
       $('.library-hours-listing').each((_, element) => {
         const $el = $(element);
         
-        // Node ID
         const nid = $el.attr('data-nid');
   
-        // --- NEW: Image Extraction ---
-        // 1. Find the image container relative to the main 'li' element
         const imageRelativeSrc = $el.find('.library-hours-listing-image img').attr('src');
-        // 2. Prepend base URL if the src exists
         const imageSrc = imageRelativeSrc ? `${baseUrl}${imageRelativeSrc}` : undefined;
   
-        // Scope searches to the info div for text details
         const $info = $el.find('.library-hours-listing-info');
   
-        // Basic Info
         const $nameEl = $info.find('.library-name').clone();
-        $nameEl.find('br').replaceWith('\n'); // Keep your newline fix
+        $nameEl.find('br').replaceWith('\n');
         const name = $nameEl.text().trim();
         
         const status = $info.find('.library-open-status').text().trim();
@@ -85,15 +79,10 @@ async function getAllLibraryHours() {
         .map((_, el) => $(el).text().trim())
         .get()
         .join(' ');
-        // --- NEW: Study Space Extraction ---
-        // 1. Find the container shown in your second screenshot
         const $studyLink = $el.find('.reserve-study-space-link a');
-        // 2. Get the href if it exists
         const studySpaceLink = $studyLink.length > 0 ? $studyLink.attr('href') : undefined;
-        // 3. Simple boolean to check existence
         const hasStudySpace = !!studySpaceLink; 
   
-        // Formatting logic you requested previously
         if(hours.length < 3) hours = "";
         if(hours.includes('hoursStarts')) hours = hours.replace('hoursStarts', 'hours\nStarts');
         if(hours.includes(' Cal ID')) hours = hours.replace(' Cal ID', '\nCal ID');
