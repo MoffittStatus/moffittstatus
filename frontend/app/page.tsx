@@ -144,19 +144,14 @@ function fixData (text:string){
     return {}
   text = text.toLowerCase()
   return {
-    // "Equipment lending" -> equipment
     equipment: text.includes("equipment"),
 
-    // "Evening hours" -> late (As requested)
     late: text.includes("evening") || text.includes("late"),
 
-    // "Research assistance" -> research
     research: text.includes("research"),
 
-    // "Study spaces" -> study
     study: text.includes("study"),
     
-    // "Snacks allowed" -> snacks
     snacks: text.includes("snack")
   }
 }
@@ -167,10 +162,8 @@ export default function LibraryStatusPage() {
   const [selectedFilters, setSelectedFilters] = React.useState<string[]>([]);
   const [searchQuery, setSearchQuery] = React.useState("");
   const filteredLibraries = libraryData?.filter((lib) => {
-    // 1. Check Tags (Existing logic)
     const matchesTags = selectedFilters.length === 0 || 
       selectedFilters.every((key) => lib.features[key]);
-    // 2. Check Search Text (New logic)
     const query = searchQuery.toLowerCase();
     const matchesSearch = 
       lib.name.toLowerCase().includes(query) || (lib.name.replace(/\s*\(.*?\)\s*/g, ' ').trim()).toLowerCase().includes(query) ||
@@ -182,8 +175,8 @@ export default function LibraryStatusPage() {
   const toggleFilter = (key: string) => {
     setSelectedFilters(prev => 
       prev.includes(key) 
-        ? prev.filter(f => f !== key) // Remove if exists
-        : [...prev, key]              // Add if not
+        ? prev.filter(f => f !== key)
+        : [...prev, key]              
     );
   };
   // React.useEffect(()=>{
@@ -248,7 +241,6 @@ export default function LibraryStatusPage() {
 }
   }
   function getSlugFromName(name: string): string {
-    // Add specific overrides here if your API IDs don't match the names perfectly
     const overrides: Record<string, string> = {
       "Main (Gardner) Stacks": "main_stacks",
       "Moffitt Library": "moffitt",
@@ -267,7 +259,6 @@ export default function LibraryStatusPage() {
     let isMounted = true;
     const loadLibraries = async () => {
       try {
-        // 1. Get the base data for all libraries
         // const allLibraries = (await getAllLibraryHours()) || [];
         const [allLibraries, allRatingsRes] = await Promise.all([
           getAllLibraryHours(),
@@ -275,14 +266,7 @@ export default function LibraryStatusPage() {
         ]); 
         console.log("Finished")
         if (!isMounted) return;
-        // 2. Map over every library to create a list of Promises
-        // This allows us to fetch rooms and ratings for ALL libraries in parallel
-
-          // Generate a "slug" for your API calls (e.g. "Doe Library" -> "doe")
-          // You might need to adjust this helper if your APIs need very specific IDs
-          // const slug = getSlugFromName(lib.name);
-  
-          const ratingsRaw = allRatingsRes?.data?.data || []; // Adjust based on your axios response structure
+          const ratingsRaw = allRatingsRes?.data?.data || [];
           const ratingsMap: Record<string, number> = {};
           const scheduleMap: Record<string, any> = {};
 
@@ -338,11 +322,9 @@ export default function LibraryStatusPage() {
 
           const crowdLevel = ratingsMap[lib.name] || 60;
           
-          // Only fetch rooms if needed (We still fetch rooms individually for now)
           const roomData = lib.hasStudySpace 
           ? await getAvailableRooms("6 pm", slug).catch(() => []) 
           : [];
-          // Helper to safely parse hours
           const [displayHours, calID] = hoursFix(lib.hours) || ["", ""];
   
           return {
@@ -355,19 +337,18 @@ export default function LibraryStatusPage() {
             // Room Logic
             rooms: roomData,
             roomsOpen: roomData.length > 0 ? roomData.length : -1,
-            roomsTotal: roomData.length || 0, // Dynamic total based on available data
+            roomsTotal: roomData.length || 0,
             
             crowdLevel: crowdLevel,
             weeklySchedule:scheduleMap[lib.name] || [],
             features: lib.services ? fixData(lib.services) : {},
             nameID: slug,
             url: lib.googleMapsLink,
-            image: lib.imageSrc, // Added this from our previous step
-            studyLink: lib.studySpaceLink // Added this from our previous step
+            image: lib.imageSrc,
+            studyLink: lib.studySpaceLink
           };
         });
   
-        // 3. Wait for all libraries to finish processing
         const processedData = await Promise.all(libraryPromises);
         
         console.log("Processed Library Data:", processedData);
@@ -384,10 +365,9 @@ export default function LibraryStatusPage() {
   const togglePin = (id) => {
     setPinnedIds((prev) => {
       const newPins = prev.includes(id) 
-        ? prev.filter((p) => p !== id) // Unpin
-        : [...prev, id];               // Pin
+        ? prev.filter((p) => p !== id)
+        : [...prev, id];               
       
-      // Save to local storage
       localStorage.setItem('pinnedLibs', JSON.stringify(newPins));
       return newPins;
     });
@@ -396,16 +376,16 @@ export default function LibraryStatusPage() {
     const isAPinned = pinnedIds.includes(a.id);
     const isBPinned = pinnedIds.includes(b.id);
     
-    if (isAPinned && !isBPinned) return -1; // a comes first
-    if (!isAPinned && isBPinned) return 1;  // b comes first
-    return 0; // maintain original order
+    if (isAPinned && !isBPinned) return -1; 
+    if (!isAPinned && isBPinned) return 1; 
+    return 0; 
   });
   return (
     <div className='bg-gray-200'>
     <section className='w-full shadow-lg bg-white'>
             <div className="flex flex-col gap-4 mb-4">
             <div className="relative flex-grow flex justify-center items-center py-4">
-  <div className="relative w-full max-w-sm"> {/* Container to control width */}
+  <div className="relative w-full max-w-sm">
     <Input
       type="search"
       placeholder="Search libraries..."
@@ -430,7 +410,7 @@ export default function LibraryStatusPage() {
                 <Badge
                   key={feature.key}
                   onClick={() => toggleFilter(feature.key)}
-                  variant={isSelected ? "default" : "outline"} // Solid if selected, outline if not
+                  variant={isSelected ? "default" : "outline"}
                   className={`
                     cursor-pointer select-none transition-all duration-200 gap-1 pr-3
                     ${isSelected 
@@ -450,7 +430,7 @@ export default function LibraryStatusPage() {
 
           </section> 
     <main className="container w-full p-4 md:p-8 mx-auto" >
-      {/* 1. Recommendations Section */}
+      {/* Recommendations Section */}
       {/* <section className="mb-8">
         <h2 className="text-2xl font-semibold tracking-tight mb-4">
           Recommendations
@@ -524,7 +504,6 @@ export default function LibraryStatusPage() {
         />        
         <div className="flex flex-wrap gap-1 items-center">
           {featureConfig.map((feature) => {
-            // Check if the feature is true in your data object
             const isActive = lib.features[feature.key];
             const IconComponent = feature.icon;
             return (
@@ -532,7 +511,7 @@ export default function LibraryStatusPage() {
               <Tooltip>
                 <TooltipTrigger>
               <div
-                title={isActive ? feature.label : `No ${feature.label}`} // Native tooltip
+                title={isActive ? feature.label : `No ${feature.label}`}
                 className={`
                   relative flex items-center justify-center w-6 h-6 rounded-full border-none transition-all duration-200 ease-in-out
                   ${isActive 

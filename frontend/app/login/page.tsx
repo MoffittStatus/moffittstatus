@@ -28,12 +28,12 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Primary Action: CalNet SSO */}
+        {/* calnet SSO */}
         <button 
           type="button"
           className="w-full bg-[#003262] hover:bg-[#00254d] text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-md mb-6"
         >
-          {/* Placeholder for CalNet Logo */}
+          {/* calnet logo */}
           <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
              <span className="text-[#003262] text-xs font-bold">C</span>
           </div>
