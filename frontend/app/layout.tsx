@@ -3,6 +3,7 @@ import "./globals.css";
 import { Navbar } from "./components/navbar";
 import { Toaster } from "@/components/ui/sonner"
 import { Inter } from '@next/font/google'
+import { Providers } from "./providers"
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -19,6 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
+        <Providers>
         <Navbar></Navbar>
         <Toaster
           position="top-center"
@@ -37,6 +39,7 @@ export default function RootLayout({
           }}
         />
         {children}
+        </Providers>
       </body>
     </html>
   );
