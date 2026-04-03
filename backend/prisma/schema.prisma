@@ -14,10 +14,11 @@ datasource db {
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique @db.VarChar(255)
-  name  String? @db.VarChar(255)
-  ratings Rating[]  // a user can have many ratings
+  id       Int       @id @default(autoincrement())
+  email    String    @unique @db.VarChar(255)
+  name     String?   @db.VarChar(255)
+  ratings  Rating[]
+  bookings Booking[]
 }
 
 model Rating {
@@ -41,20 +42,62 @@ model Library {
   id              Int      @id @default(autoincrement())
   name            String   @unique
   googleUrl       String   @db.Text
-  
+
   address        String?  @db.VarChar(255)
   imageSrc       String?  @db.Text
   studySpaceUrl  String?  @db.Text
   services       String?  @db.Text
   hasStudySpace  Boolean  @default(false)
-  
+
   currentBusyness Int      @default(0)
   isOpen          Boolean  @default(false)
   lastUpdated     DateTime @default(now())
 
-  weeklySchedule  Json? 
+  weeklySchedule  Json?
   ratings         Rating[]
   logs            TrafficLog[]
+  bookings        Booking[]
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  EXPIRED
+}
+
+model Booking {
+  id              Int           @id @default(autoincrement())
+
+  // LibCal identifiers
+  roomId          String        @db.VarChar(50)   // LibCal eid
+  groupId         String        @db.VarChar(50)   // LibCal gid
+  libcalLibraryId String        @db.VarChar(50)   // LibCal lid (≠ our DB id)
+  tempBookingId   String?       @db.VarChar(100)  // returned by LibCal on temp booking
+  checksum        String?       @db.VarChar(255)  // LibCal slot checksum
+  redirectUrl     String?       @db.Text          // final booking URL sent to user
+
+  // Time
+  startTime       DateTime
+  endTime         DateTime
+  duration        Int           // minutes
+
+  // Status (library-side view)
+  status          BookingStatus @default(PENDING)
+
+  // User — nullable placeholder until login is implemented
+  userId          Int?
+  user            User?         @relation(fields: [userId], references: [id])
+
+  // Library FK
+  libraryId       Int?
+  library         Library?      @relation(fields: [libraryId], references: [id])
+
+  createdAt       DateTime      @default(now())
+
+  @@index([libraryId, startTime])
+  @@index([status])
+  @@index([roomId, startTime])
 }
 
 model TrafficLog {
