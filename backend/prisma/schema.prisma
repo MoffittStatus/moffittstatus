@@ -19,6 +19,7 @@ model User {
   name     String?   @db.VarChar(255)
   ratings  Rating[]
   bookings Booking[]
+  bookingRequests UserBookingRequest[]
 }
 
 model Rating {
@@ -57,6 +58,48 @@ model Library {
   ratings         Rating[]
   logs            TrafficLog[]
   bookings        Booking[]
+  bookingRequests UserBookingRequest[]
+}
+
+enum BookingRequestStatus {
+  RECEIVED
+  COMPLETED
+  FAILED
+  ABANDONED
+}
+
+model UserBookingRequest {
+  id               Int                  @id @default(autoincrement())
+
+  // User intent
+  requestedStart   DateTime
+  requestedEnd     DateTime
+
+  // LibCal context (minimal for MVP)
+  libcalLibraryId  String?              @db.VarChar(50)   // lid
+  libcalRoomId     String?              @db.VarChar(50)   // eid
+  slotChecksum     String?              @db.VarChar(255)
+
+  // Request lifecycle
+  status           BookingRequestStatus @default(RECEIVED)
+
+  // Relations
+  userId           Int?
+  user             User?                @relation(fields: [userId], references: [id])
+
+  libraryId        Int?
+  library          Library?             @relation(fields: [libraryId], references: [id])
+
+  bookingId        Int?                 @unique
+  booking          Booking?             @relation(fields: [bookingId], references: [id])
+
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([libraryId, createdAt])
+  @@index([status, createdAt])
+  @@index([libcalLibraryId, requestedStart, requestedEnd])
 }
 
 enum BookingStatus {
@@ -92,6 +135,8 @@ model Booking {
   // Library FK
   libraryId       Int?
   library         Library?      @relation(fields: [libraryId], references: [id])
+
+  bookingRequest  UserBookingRequest?
 
   createdAt       DateTime      @default(now())
 
