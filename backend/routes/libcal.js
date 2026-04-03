@@ -265,6 +265,77 @@ return libcal
   return casUrl
 }
 
+// Library ID config — all LibCal lid/gid values live here, not in the frontend
+const LIBRARY_CONFIG = {
+  main_stacks:          { lid: '8867', gid: '16357' },
+  kresge:               { lid: '8863', gid: '16359' },
+  moffitt:              { lid: '8868', gid: '0'     },
+  earth_sciences:       { lid: '8862', gid: '16362' },
+  east_asian:           { lid: '8864', gid: '16368' },
+  environmental_design: { lid: '8865', gid: '16358' },
+  igs:                  { lid: '8866', gid: '16361' },
+};
+
+/**
+ * GET /api/libcal/availability?library=main_stacks&date=2026-04-03
+ * Returns raw slot data from LibCal for a given library and date.
+ */
+router.get('/availability', async (req, res) => {
+  const { library, date } = req.query;
+
+  if (!library || !date) {
+    return res.status(400).json({ error: 'Missing required query params: library, date' });
+  }
+
+  const config = LIBRARY_CONFIG[library];
+  if (!config) {
+    return res.status(400).json({ error: `Unknown library: ${library}` });
+  }
+
+  const startDate = new Date(date);
+  const endDate = new Date(startDate);
+  endDate.setDate(startDate.getDate() + 1);
+
+  const startParam = startDate.toISOString().split('T')[0];
+  const endParam   = endDate.toISOString().split('T')[0];
+
+  try {
+    const response = await fetch('https://berkeley.libcal.com/spaces/availability/grid', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+        'Origin': 'https://berkeley.libcal.com',
+        'Referer': 'https://berkeley.libcal.com/spaces',
+        'X-Requested-With': 'XMLHttpRequest',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
+      },
+      body: new URLSearchParams({
+        lid: config.lid,
+        gid: config.gid,
+        eid: '-1',
+        seat: '0',
+        seatId: '0',
+        zone: '0',
+        start: startParam,
+        end: endParam,
+        pageIndex: '0',
+        pageSize: '100',
+      }).toString(),
+    });
+
+    if (!response.ok) {
+      console.error(`LibCal error for ${library}:`, response.status);
+      return res.status(502).json({ error: `LibCal returned ${response.status}` });
+    }
+
+    const data = await response.json();
+    return res.json(data);
+  } catch (error) {
+    console.error('availability fetch error:', error);
+    return res.status(500).json({ error: 'Failed to fetch availability' });
+  }
+});
+
 /**
  * GET /api/libcal/health
  */
