@@ -20,6 +20,13 @@ model User {
   ratings  Rating[]
   bookings Booking[]
   bookingRequests UserBookingRequest[]
+
+  // Friends — self-referential many-to-many
+  friends   UserFriend[] @relation("UserFriends")
+  friendOf  UserFriend[] @relation("FriendOf")
+
+  // Invites received (only populated when invitee has an account)
+  bookingInvites BookingInvite[] @relation("InviteeUser")
 }
 
 model Rating {
@@ -104,6 +111,9 @@ model UserBookingRequest {
   bookingId        Int?                 @unique
   booking          Booking?             @relation(fields: [bookingId], references: [id])
 
+  // Invited users for this booking request
+  invites          BookingInvite[]
+
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
 
@@ -165,4 +175,53 @@ model TrafficLog {
   createdAt   DateTime @default(now())
 
   @@index([libraryId, createdAt])
+}
+
+// ─── Friends ───────────────────────────────────────────────
+
+model UserFriend {
+  id            Int      @id @default(autoincrement())
+
+  userId        Int
+  user          User     @relation("UserFriends", fields: [userId], references: [id])
+
+  friendEmail   String   @db.VarChar(255)
+
+  friendUserId  Int?
+  friendUser    User?    @relation("FriendOf", fields: [friendUserId], references: [id])
+
+  createdAt     DateTime @default(now())
+
+  @@unique([userId, friendEmail])
+  @@index([friendUserId])
+  @@index([friendEmail])
+}
+
+// ─── Booking Invites ───────────────────────────────────────
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model BookingInvite {
+  id                Int                @id @default(autoincrement())
+
+  bookingRequestId  Int
+  bookingRequest    UserBookingRequest @relation(fields: [bookingRequestId], references: [id])
+
+  inviteeEmail      String             @db.VarChar(255)
+
+  inviteeUserId     Int?
+  inviteeUser       User?              @relation("InviteeUser", fields: [inviteeUserId], references: [id])
+
+  status            InviteStatus       @default(PENDING)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([bookingRequestId, inviteeEmail])
+  @@index([inviteeUserId])
+  @@index([inviteeEmail])
 }
