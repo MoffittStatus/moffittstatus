@@ -68,6 +68,12 @@ enum BookingRequestStatus {
   ABANDONED
 }
 
+enum BookingLocationType {
+  LIBRARY
+  CAMPUS_SPACE
+  OTHER
+}
+
 model UserBookingRequest {
   id               Int                  @id @default(autoincrement())
 
@@ -75,8 +81,13 @@ model UserBookingRequest {
   requestedStart   DateTime
   requestedEnd     DateTime
 
-  // LibCal context (minimal for MVP)
-  libcalLibraryId  String?              @db.VarChar(50)   // lid
+  // Location context
+  locationType     BookingLocationType  @default(LIBRARY)
+  locationName     String?              @db.VarChar(255)  // e.g. Main Stacks, Soda, Cory
+  locationCode     String?              @db.VarChar(100)  // optional short code used by upstream systems
+
+  // LibCal context (optional; may be absent for non-LibCal sources)
+  libcalLibraryId  String?              @db.VarChar(50)   // lid (legacy naming kept for compatibility)
   libcalRoomId     String?              @db.VarChar(50)   // eid
   slotChecksum     String?              @db.VarChar(255)
 
@@ -99,6 +110,7 @@ model UserBookingRequest {
   @@index([userId, createdAt])
   @@index([libraryId, createdAt])
   @@index([status, createdAt])
+  @@index([locationType, locationName, requestedStart])
   @@index([libcalLibraryId, requestedStart, requestedEnd])
 }
 
