@@ -32,6 +32,11 @@ const ProfilePage = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
+  const [profileStats, setProfileStats] = useState({
+    reportsCount: 0,
+    points: 0,
+    rank: 'Unranked'
+  });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,15 +52,25 @@ const ProfilePage = () => {
   const fetchAchievements = async () => {
     try {
       // @ts-ignore
-      const response = await fetch(`http://localhost:8000/api/achievements/user/${session?.user?.id}`);
-      const data = await response.json();
+      const [achievementsRes, profileRes] = await Promise.all([
+        fetch(`http://localhost:8000/api/achievements/user/${session?.user?.id}`),
+        fetch(`http://localhost:8000/api/user/${session?.user?.id}/profile`)
+      ]);
+      const data = await achievementsRes.json();
+      const profileData = await profileRes.json();
+
       setAchievements(data.map((ua: any) => ({
         ...ua.achievement,
         earnedAt: ua.earnedAt,
         status: ua.status
       })));
+      setProfileStats({
+        reportsCount: profileData.reportsCount || 0,
+        points: profileData.points || 0,
+        rank: profileData.rank || 'Unranked'
+      });
     } catch (error) {
-      console.error('Error fetching achievements:', error);
+      console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
@@ -129,9 +144,9 @@ const ProfilePage = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
           {/* Stat Cards */}
           {[
-            { label: 'Reports', value: '12', icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
-            { label: 'Points', value: '450', icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-50' },
-            { label: 'Rank', value: '#42', icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Reports', value: profileStats.reportsCount.toString(), icon: BookOpen, color: 'text-blue-600', bg: 'bg-blue-50' },
+            { label: 'Points', value: profileStats.points.toString(), icon: Zap, color: 'text-yellow-600', bg: 'bg-yellow-50' },
+            { label: 'Rank', value: profileStats.rank, icon: TrendingUp, color: 'text-emerald-600', bg: 'bg-emerald-50' },
           ].map((stat, i) => (
             <div key={i} className="bg-white p-6 rounded-3xl shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] border border-gray-100 flex items-center gap-4">
               <div className={`p-4 rounded-2xl ${stat.bg} ${stat.color}`}>
