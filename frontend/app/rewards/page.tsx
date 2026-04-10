@@ -32,7 +32,56 @@ interface Quest {
   icon: React.ReactNode;
 }
 
+import { useSession } from 'next-auth/react';
+
 const RewardsPage: React.FC = () => {
+  const { data: session } = useSession();
+  const [achievements, setAchievements] = React.useState<Achievement[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const allRes = await fetch('http://localhost:8000/api/achievements');
+        const allAchievements = await allRes.json();
+
+        let userEarnedIds: number[] = [];
+        // @ts-ignore
+        if (session?.user?.id) {
+          // @ts-ignore
+          const userRes = await fetch(`http://localhost:8000/api/achievements/user/${session.user.id}`);
+          const userEarned = await userRes.json();
+          userEarnedIds = userEarned.map((ua: any) => ua.achievementId);
+        }
+
+        const mapped = allAchievements.map((ach: any) => ({
+          id: ach.id.toString(),
+          title: ach.name,
+          description: ach.description,
+          icon: getIcon(ach.icon),
+          isUnlocked: userEarnedIds.includes(ach.id),
+        }));
+
+        setAchievements(mapped);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [session]);
+
+  const getIcon = (iconName: string) => {
+    switch (iconName) {
+      case 'BookOpen': return <BookOpen className="w-6 h-6" />;
+      case 'Award': return <Award className="w-6 h-6" />;
+      case 'Sun': return <Star className="w-6 h-6" />;
+      case 'Moon': return <Star className="w-6 h-6" />;
+      default: return <Award className="w-6 h-6" />;
+    }
+  };
+
   const userPoints = 450;
   
   const quests: Quest[] = [
@@ -47,39 +96,6 @@ const RewardsPage: React.FC = () => {
       title: 'Check-in at Location',
       points: 20,
       icon: <MapPin className="w-5 h-5 text-white" />
-    }
-  ];
-
-  const achievements: Achievement[] = [
-    {
-      id: '1',
-      title: 'First Scout',
-      description: 'Submit your first busyness report',
-      icon: <BookOpen className="w-6 h-6" />,
-      isUnlocked: true,
-    },
-    {
-      id: '2',
-      title: 'The Planner',
-      description: 'Click to book a study room',
-      icon: <Calendar className="w-6 h-6" />,
-      isUnlocked: true,
-    },
-    {
-      id: '3',
-      title: 'Library Regular',
-      description: 'Submit 5 reports',
-      icon: <Award className="w-6 h-6" />,
-      isUnlocked: false,
-      progress: { current: 2, total: 5 }
-    },
-    {
-      id: '4',
-      title: "That's fire",
-      description: 'Reach a 5-day Streak',
-      icon: <Star className="w-6 h-6" />,
-      isUnlocked: false,
-      progress: { current: 2, total: 5 }
     }
   ];
 

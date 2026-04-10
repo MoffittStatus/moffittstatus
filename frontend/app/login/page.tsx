@@ -1,11 +1,16 @@
 'use client'
 import React, { useState } from 'react';
 import { User, Lock, ArrowRight } from 'lucide-react';
+import { signIn } from 'next-auth/react';
 
 const LoginPage: React.FC = () => {
   const [isLogin, setIsLogin] = useState<boolean>(true);
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
+
+  const handleGoogleSignIn = () => {
+    signIn('google', { callbackUrl: '/' });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,16 +33,30 @@ const LoginPage: React.FC = () => {
           </p>
         </div>
 
+        {/* Google SSO */}
+        <button 
+          onClick={handleGoogleSignIn}
+          type="button"
+          className="w-full bg-[#003262] hover:bg-[#00254d] text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-md mb-4"
+        >
+          {/* google logo placeholder */}
+          <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+             <span className="text-[#003262] text-xs font-bold">G</span>
+          </div>
+          <span>Continue with Google</span>
+        </button>
+
         {/* calnet SSO */}
         <button 
           type="button"
-          className="w-full bg-[#003262] hover:bg-[#00254d] text-white font-semibold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-md mb-6"
+          disabled
+          className="w-full bg-gray-200 text-gray-500 font-semibold py-4 px-6 rounded-2xl flex items-center justify-center gap-3 transition-all cursor-not-allowed mb-6 opacity-60"
         >
           {/* calnet logo */}
           <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
-             <span className="text-[#003262] text-xs font-bold">C</span>
+             <span className="text-gray-400 text-xs font-bold">C</span>
           </div>
-          <span>Continue with CalNet ID</span>
+          <span>CalNet (Coming Soon)</span>
         </button>
 
         <div className="relative mb-6">

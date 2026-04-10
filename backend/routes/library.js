@@ -37,8 +37,18 @@ router.post('/update', async (req, res) => {
         floor: String(floor),
         longitude: longitude || -1,
         latitude: latitude || -1,
+        // userId is optional but HIGHLY RECOMMENDED for achievement tracking
+        userId: req.body.userId ? parseInt(req.body.userId) : null,
       },
     });
+
+    // Check achievements if userId is provided
+    // This triggers the gamification logic in utils/achievementService.js
+    if (req.body.userId) {
+      const { checkAndGrant } = require('../utils/achievementService');
+      await checkAndGrant(parseInt(req.body.userId));
+    }
+
     console.log("Did the thing")
     res.json({ message: 'Rating added successfully', data: newRating });
   } catch (error) {
