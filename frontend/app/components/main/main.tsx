@@ -199,7 +199,7 @@ export default function LibraryStatusPage({data}) {
 
       <section className='w-full shadow-lg bg-white'>
       <div>
-      
+      <span className='font-bold justify-center items-center flex flex-row mt-2 rounded-md underline'><button onClick={() => router.push('/discover')}>New to Berkeley? Try out OskiChat to discover new places!</button></span>
 
       </div>
               <div className="flex flex-col gap-4 mb-4">

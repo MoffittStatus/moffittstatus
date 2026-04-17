@@ -12,8 +12,8 @@ from bs4 import BeautifulSoup
 from neo4j import GraphDatabase
 
 from langchain_groq import ChatGroq
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_pinecone import PineconeVectorStore
+from pinecone import Pinecone
+from huggingface_hub import InferenceClient
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import StateGraph, END
 
@@ -70,7 +70,6 @@ class GraphState(TypedDict, total=False):
     final_json: Optional[Dict[str, Any]]
     debug_steps: List[str]
 
-
 # ----------------------------
 # LLM / Stores
 # ----------------------------
@@ -80,12 +79,12 @@ llm = ChatGroq(
     model_name="llama-3.1-8b-instant",
 )
 
-embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-vector_store = PineconeVectorStore(
-    index_name="berkeley-campus-locations",
-    embedding=embeddings,
-)
+HF_TOKEN = os.getenv("HF_TOKEN")
+EMBED_MODEL = os.getenv("EMBED_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
+PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
+PINECONE_INDEX_HOST = os.getenv("PINECONE_INDEX_HOST")
+PINECONE_INDEX_NAME = os.getenv("PINECONE_INDEX_NAME", "berkeley-campus-locations")
 NEO4J_URI = os.getenv("NEO4J_URI")
 NEO4J_USERNAME = os.getenv("NEO4J_USERNAME")
 NEO4J_PASSWORD = os.getenv("NEO4J_PASSWORD")
@@ -96,6 +95,21 @@ if NEO4J_URI and NEO4J_USERNAME and NEO4J_PASSWORD:
         NEO4J_URI,
         auth=(NEO4J_USERNAME, NEO4J_PASSWORD),
     )
+hf_client = None
+if HF_TOKEN:
+    hf_client = InferenceClient(
+        provider="hf-inference",
+        api_key=HF_TOKEN,
+    )
+
+pc = None
+index = None
+if PINECONE_API_KEY:
+    pc = Pinecone(api_key=PINECONE_API_KEY)
+    if PINECONE_INDEX_HOST:
+        index = pc.Index(host=PINECONE_INDEX_HOST)
+    else:
+        index = pc.Index(PINECONE_INDEX_NAME)  # okay for dev; host is better in prod
 
 
 # ----------------------------
@@ -124,6 +138,81 @@ Do not include markdown or explanation.
 # ----------------------------
 # Helpers
 # ----------------------------
+def embed_query_remote(text: str) -> List[float]:
+    if hf_client is None:
+        raise RuntimeError("HF_TOKEN is missing")
+
+    result = hf_client.feature_extraction(
+        text,
+        model=EMBED_MODEL,
+    )
+
+    if result is None:
+        raise RuntimeError("Embedding API returned None")
+
+    # Convert numpy / ndarray-like outputs first
+    if hasattr(result, "tolist"):
+        result = result.tolist()
+
+    # Empty list check after conversion
+    if isinstance(result, list) and len(result) == 0:
+        raise RuntimeError("Embedding API returned empty list")
+
+    # Single nested vector: [[...]]
+    if (
+        isinstance(result, list)
+        and len(result) == 1
+        and isinstance(result[0], list)
+        and all(isinstance(x, (int, float)) for x in result[0])
+    ):
+        return [float(x) for x in result[0]]
+
+    # Token embeddings: [[...], [...], ...] -> mean pool
+    if (
+        isinstance(result, list)
+        and len(result) > 0
+        and all(isinstance(row, list) for row in result)
+    ):
+        dim = len(result[0])
+        pooled = [0.0] * dim
+        count = 0
+        for row in result:
+            if len(row) != dim:
+                continue
+            for i, val in enumerate(row):
+                pooled[i] += float(val)
+            count += 1
+        if count == 0:
+            raise RuntimeError("Embedding API returned unusable nested result")
+        return [v / count for v in pooled]
+
+    # Flat vector: [...]
+    if isinstance(result, list) and all(isinstance(x, (int, float)) for x in result):
+        return [float(x) for x in result]
+
+    raise RuntimeError(f"Unexpected embedding shape: {type(result)}")
+
+def match_get(match: Any, key: str, default=None):
+    if isinstance(match, dict):
+        return match.get(key, default)
+    return getattr(match, key, default)
+
+
+def metadata_get(metadata: Any, key: str, default=None):
+    if isinstance(metadata, dict):
+        return metadata.get(key, default)
+    return getattr(metadata, key, default)
+
+
+def get_match_text(metadata: Dict[str, Any]) -> str:
+    return (
+        metadata_get(metadata, "description")
+        or metadata_get(metadata, "chunk_text")
+        or metadata_get(metadata, "text")
+        or metadata_get(metadata, "content")
+        or ""
+    )
+
 def query_intent(query: str) -> str:
     q = query.lower()
 
@@ -276,16 +365,33 @@ def decide_route(query: str) -> RouteDecision:
 
 
 def search_vibes(query: str, k: int = VECTOR_K) -> List[Dict[str, Any]]:
-    retriever = vector_store.as_retriever(search_kwargs={"k": k})
-    docs = retriever.invoke(query)
+    if index is None:
+        return []
+
+    query_vector = embed_query_remote(query)
+
+    results = index.query(
+        vector=query_vector,
+        top_k=k,
+        include_metadata=True,
+        include_values=False,
+    )
+
+    matches = []
+    if isinstance(results, dict):
+        matches = results.get("matches", [])
+    else:
+        matches = getattr(results, "matches", [])
 
     seen = set()
     candidates: List[Dict[str, Any]] = []
 
-    for d in docs:
-        name = d.metadata.get("name")
-        lat = d.metadata.get("lat")
-        lng = d.metadata.get("lng")
+    for m in matches:
+        metadata = match_get(m, "metadata", {}) or {}
+
+        name = metadata_get(metadata, "name")
+        lat = metadata_get(metadata, "lat")
+        lng = metadata_get(metadata, "lng")
 
         if not name or lat is None or lng is None:
             continue
@@ -295,7 +401,7 @@ def search_vibes(query: str, k: int = VECTOR_K) -> List[Dict[str, Any]]:
             continue
         seen.add(norm)
 
-        description = clean_description(name, str(d.page_content or ""))
+        description = clean_description(name, str(get_match_text(metadata)))
 
         candidates.append(
             {
@@ -634,45 +740,72 @@ def custom_pitch(query: str, candidate: Dict[str, Any]) -> str:
     prefs = extract_preferences(query)
     reasons = extract_reason_tags(candidate)
 
-    opening = f"Go to {candidate['name']}"
-
-    reason_parts: List[str] = []
+    facts: List[str] = []
 
     if candidate.get("hours_status"):
-        reason_parts.append(f"it is {candidate['hours_status'].lower()}")
+        facts.append(f"It is {candidate['hours_status'].lower()}.")
 
     if prefs["quiet"] and reasons["quiet"]:
-        reason_parts.append("it fits a quieter, focused study session")
+        facts.append("It fits a quieter, more focused study session.")
     elif prefs["social"] and reasons["social"]:
-        reason_parts.append("it is better for talking and working with other people")
+        facts.append("It is better for talking and working with other people.")
     elif prefs["social"] and candidate.get("source") != "library":
-        reason_parts.append("it should be easier to talk there than in a quiet library")
+        facts.append("It should be easier to talk there than in a quiet library.")
     elif prefs["quiet"] and candidate.get("is_library"):
-        reason_parts.append("it is a stronger fit for focused studying")
+        facts.append("It is a stronger fit for focused studying.")
 
     if prefs["wifi"] and reasons["wifi"]:
-        reason_parts.append("it sounds laptop-friendly with good wifi")
+        facts.append("It sounds laptop-friendly and good for getting work done.")
     elif prefs["wifi"]:
-        reason_parts.append("it is a reasonable place to work on a laptop")
+        facts.append("It is still a reasonable place to work on a laptop.")
 
     if prefs["coffee"] and reasons["coffee"]:
-        reason_parts.append("you can also grab coffee there")
+        facts.append("You can also grab coffee or a snack there.")
 
     if prefs["time_sensitive"] and candidate.get("is_library") and candidate.get("hours_status"):
-        reason_parts.append("so it clears your open-right-now requirement")
+        facts.append("That makes it a good fit for your open-right-now requirement.")
 
-    if not reason_parts:
-        base_desc = clean_description(candidate["name"], candidate.get("description", ""))
-        if base_desc:
-            reason_parts.append(base_desc.split(".")[0].rstrip("."))
-        else:
-            reason_parts.append("it looks like the best available fit for what you asked for")
+    base_desc = clean_description(candidate["name"], candidate.get("description", ""))
+    if base_desc:
+        facts.append(base_desc.rstrip(".") + ".")
 
-    if len(reason_parts) == 1:
-        return f"{opening}. {reason_parts[0]}."
-    if len(reason_parts) == 2:
-        return f"{opening}. {reason_parts[0]}, and {reason_parts[1]}."
-    return f"{opening}. {reason_parts[0]}, {reason_parts[1]}, and {reason_parts[2]}."
+    fact_block = " ".join(facts[:4]).strip()
+    if not fact_block:
+        fact_block = "It looks like the best available fit for what you asked for."
+
+    prompt = f"""
+You are writing a short campus recommendation message.
+
+User request:
+{query}
+
+Recommended place:
+{candidate['name']}
+
+Known facts:
+{fact_block}
+
+Write 2-4 sentences.
+Requirements:
+- Sound natural, specific, and conversational.
+- Mirror the user's vibe and intent.
+- Make the recommendation feel personally chosen.
+- Do not invent facts beyond the known facts.
+- Do not use bullet points.
+- Keep it under 90 words.
+"""
+
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        text = response.content if isinstance(response.content, str) else str(response.content)
+        text = text.strip()
+
+        if text:
+            return text
+    except Exception:
+        pass
+
+    return f"Go to {candidate['name']}. {fact_block}"
 # ----------------------------
 # Build graph
 # ----------------------------

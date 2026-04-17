@@ -59,6 +59,7 @@ import { StatusBadge } from '../../statusBadge';
 import { BusynessPopup } from '../../busynessPopup';
 import dynamic from 'next/dynamic';
 import { MapComponentHandle, MapComponentProps } from '../../map/MapComponent';
+import { BACKEND_URL, CHATBOT_URL } from '@/lib/apiEndPoints';
 const featureConfig = [
     { 
       key: "late", 
@@ -150,22 +151,26 @@ const handleSendMessage = async (e?: React.FormEvent) => {
 
   const trimmedInput = chatInput.trim();
   const newHistory = [...chatHistory, { role: "user", text: trimmedInput }].slice(-5);
+
   setChatHistory(newHistory);
   setChatInput("");
 
   if (trimmedInput.length < 10) {
-    setTimeout(() => {
-      setChatHistory((prev) =>
-        [...prev, { role: "bot", text: "You gotta write a little more than that :)" }].slice(-5)
-      );
-    }, 600);
+    setChatHistory((prev) =>
+      [...prev, { role: "bot", text: "You gotta write a little more than that :)" }].slice(-5)
+    );
     return;
   }
 
   setMakingRequest(true);
 
+  // add temporary loading message
+  setChatHistory((prev) =>
+    [...prev, { role: "bot", text: "Thinking..." }].slice(-5)
+  );
+
   try {
-    const res = await fetch("http://127.0.0.1:8000/api/recommend", {
+    const res = await fetch(CHATBOT_URL + "/api/recommend", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -189,31 +194,33 @@ const handleSendMessage = async (e?: React.FormEvent) => {
     }
 
     const recommendation = data.final_json;
-
     const botMessage = `${recommendation.pitch}`;
 
-    setTimeout(() => {
-      setChatHistory((prev) =>
-        [...prev, { role: "bot", text: botMessage }].slice(-5)
+    setChatHistory((prev) => {
+      const withoutLoading = prev.filter(
+        (msg) => !(msg.role === "bot" && msg.text === "Thinking...")
       );
-      onLibrarySelect(recommendation.name);
-      setMakingRequest(false);
-    }, 3000);
+      return [...withoutLoading, { role: "bot", text: botMessage }].slice(-5);
+    });
+
+    onLibrarySelect(recommendation.name);
   } catch (error) {
     console.error("Failed to fetch recommendation:", error);
 
-    setTimeout(() => {
-      setChatHistory((prev) =>
-        [
-          ...prev,
-          {
-            role: "bot",
-            text: "I couldn't find anything meeting your criteria, try sending me the message again.",
-          },
-        ].slice(-5)
+    setChatHistory((prev) => {
+      const withoutLoading = prev.filter(
+        (msg) => !(msg.role === "bot" && msg.text === "Thinking...")
       );
-      setMakingRequest(false);
-    }, 3000);
+      return [
+        ...withoutLoading,
+        {
+          role: "bot",
+          text: "I couldn't find anything meeting your criteria, try sending me the message again.",
+        },
+      ].slice(-5);
+    });
+  } finally {
+    setMakingRequest(false);
   }
 };
     const [libraryData, setLibraryData] = useState<Library[]>()
