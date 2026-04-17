@@ -3,8 +3,8 @@ import urllib.parse
 import sys
 import datetime
 import requests
-import json 
-import pytz 
+import json
+import pytz
 
 def unshorten_url(url):
     """
@@ -13,35 +13,52 @@ def unshorten_url(url):
     try:
         headers = {'User-Agent': 'Mozilla/5.0'}
         if "goo.gl" in url or "googleusercontent" in url:
-            response = requests.head(url, allow_redirects=True, headers=headers)
+            response = requests.get(url, allow_redirects=True, headers=headers, timeout=15)
             return response.url
         return url
-    except:
+    except Exception as e:
         return url
 
 def get_capacity(url: str):
-    result = {"success": False, "error": "Unknown error"}
-
     if not url:
         print(json.dumps({"success": False, "error": "Missing URL"}))
         return
 
     try:
+        original_url = url
+
         if "goo.gl" in url or "googleusercontent" in url:
             url = unshorten_url(url)
 
         if '/place/' in url:
             raw_name = url.split('/place/')[1].split('/')[0]
         else:
-            print(json.dumps({"success": False, "error": "Invalid URL format: Missing /place/"}))
+            print(json.dumps({
+                "success": False,
+                "error": "Invalid URL format: Missing /place/",
+                "debug_original_url": original_url,
+                "debug_expanded_url": url
+            }))
             return
 
-        clean_name = urllib.parse.unquote(raw_name).replace('+', ' ')
-        search_term = "{} Berkeley".format(clean_name)
-        
+        clean_name = urllib.parse.unquote(raw_name).replace('+', ' ').strip()
+        search_term = "{} Berkeley CA".format(clean_name)
+
         data = livepopulartimes.get_populartimes_by_address(search_term)
-        
+        if not isinstance(data, dict):
+            print(json.dumps({
+                "success": False,
+                "error": "livepopulartimes returned non-dict",
+                "library_name": clean_name,
+                "debug_original_url": original_url,
+                "debug_expanded_url": url,
+                "debug_search_term": search_term,
+                "debug_data": str(data)
+            }))
+            return
+
         percentage = data.get('current_popularity')
+        schedule = data.get('populartimes', [])
         MAX_CAPACITY = 200
 
         if percentage is not None:
@@ -53,19 +70,22 @@ def get_capacity(url: str):
                 "percentage": percentage,
                 "estimated_students": count,
                 "is_open": True,
-                "schedule": data.get('populartimes', []) 
+                "schedule": schedule,
+                "debug_original_url": original_url,
+                "debug_expanded_url": url,
+                "debug_search_term": search_term
             }
-        
-        elif 'populartimes' in data:
+
+        elif schedule:
             berkeley_tz = pytz.timezone('America/Los_Angeles')
             now = datetime.datetime.now(berkeley_tz)
             day_idx = now.weekday()
             hour_idx = now.hour
-            
+
             try:
-                historical_pct = data['populartimes'][day_idx]['data'][hour_idx]
+                historical_pct = schedule[day_idx]['data'][hour_idx]
                 count = int((historical_pct / 100) * MAX_CAPACITY)
-                
+
                 status_msg = "Historical Estimate"
                 if historical_pct == 0:
                     status_msg = "Likely Closed"
@@ -77,33 +97,45 @@ def get_capacity(url: str):
                     "percentage": historical_pct,
                     "estimated_students": count,
                     "is_open": historical_pct > 0,
-                    "schedule": data.get('populartimes', [])
+                    "schedule": schedule,
+                    "debug_original_url": original_url,
+                    "debug_expanded_url": url,
+                    "debug_search_term": search_term
                 }
-            except:
+            except Exception as e:
                 result = {
-                    "success": True,
+                    "success": False,
                     "library_name": clean_name,
-                    "status": "Error Parsing History",
+                    "error": "Error parsing history: {}".format(str(e)),
                     "percentage": 0,
                     "estimated_students": 0,
                     "is_open": False,
-                    "schedule": []
+                    "schedule": schedule,
+                    "debug_original_url": original_url,
+                    "debug_expanded_url": url,
+                    "debug_search_term": search_term,
+                    "debug_data": data
                 }
         else:
             result = {
-                "success": True, 
+                "success": False,
                 "library_name": clean_name,
+                "error": "No popularity data found",
                 "status": "No Data Found",
                 "percentage": 0,
-                "estimated_students": 0, 
+                "estimated_students": 0,
                 "is_open": False,
-                "schedule": []
+                "schedule": [],
+                "debug_original_url": original_url,
+                "debug_expanded_url": url,
+                "debug_search_term": search_term,
+                "debug_data": data
             }
 
     except Exception as e:
         result = {"success": False, "error": str(e)}
 
-    print(json.dumps(result))
+    print(json.dumps(result, default=str))
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

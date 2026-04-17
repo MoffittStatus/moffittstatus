@@ -199,7 +199,7 @@ export default function LibraryStatusPage({data}) {
 
       <section className='w-full shadow-lg bg-white'>
       <div>
-      <span className='font-bold justify-center items-center flex flex-row mt-2 rounded-md underline'><button onClick={() => router.push('/discover')}>New to Berkeley? Try out OskiChat to discover new places!</button></span>
+      
 
       </div>
               <div className="flex flex-col gap-4 mb-4">
@@ -253,7 +253,7 @@ export default function LibraryStatusPage({data}) {
         <section className="space-y-6">   
           <div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8 sm:gap-8 md:gap-8 lg:gap-24 xl:gap-16 border-none bg-transparent shadow-none">
-              {libraryData && libraryData.length >=29 && sortedLibraries && sortedLibraries.map((lib) => {
+              {libraryData && sortedLibraries && sortedLibraries.map((lib) => {
                 const roomPercent = (lib.roomsOpen / lib.roomsTotal) * 100;
                 const isPinned = pinnedIds.includes(lib.id)
                 return (

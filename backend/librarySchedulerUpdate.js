@@ -143,7 +143,11 @@ async function updateOneLibrary(library) {
             weeklySchedule: result.schedule
           }
         });
-
+if (!result.success) {
+	  console.error(`Error scraping ${library.name}:`, result.error);
+	  resolve(false);
+	  return;
+}
         //this is to store in our logs to handle for the future
         if (result.is_open) {
           await prisma.trafficLog.create({
@@ -203,9 +207,11 @@ async function runBatchUpdate() {
     }
   });
 
-  for (const lib of libraries) {
-    await updateOneLibrary(lib);
-  }
+  //for (const lib of libraries) {
+  //  await updateOneLibrary(lib);
+  //}
+	//
+  await Promise.allSettled(libraries.map((lib) => updateOneLibrary(lib)));
   console.log("UPDATE FINISHED");
 }
 module.exports = { getAllLibraryHours, runBatchUpdate };
