@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 const navLinks = [
-  { href: '/', label: 'Discover Berkeley with OskiChat' },
-  { href: '/hours', label: 'Library Hours' },
+  { href: '/', label: 'OskiChat' },
+  { href: '/hours', label: 'Hours' },
 
 ];
 
