@@ -10,3 +10,4 @@ langchain-groq==1.1.2
 langgraph==1.1.6
 pinecone==7.3.0
 huggingface_hub==1.10.2
+numpy==2.4.4
