@@ -1,7 +1,8 @@
 import * as React from "react";
 import { getAllLibraryRatings } from '@/lib/firebaseMethods';
 import { getAllLibraryHours, getAvailableRooms } from '@/lib/libCal';
-import LibraryStatusPage from './components/main/main';
+import LibraryStatusPage from '../components/main/main';
+import DiscoverPage from "../components/main/discover/discover";
 
 function hoursFix (input:string) { 
   if (input.includes('Starts')){
@@ -148,5 +149,5 @@ export default async function Page() {
   };
 
   const result = await loadLibraries();
-  return (<LibraryStatusPage data={result}></LibraryStatusPage>)
+  return (<DiscoverPage data={result}></DiscoverPage>)
 }
