@@ -195,7 +195,18 @@ const handleSendMessage = async (e?: React.FormEvent) => {
 
     const recommendation = data.final_json;
     const botMessage = `${recommendation.pitch}`;
-
+    const query_store_response = await fetch(BACKEND_URL + "/api/oskichat/store_search", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        user_lat: 37.8715,
+        user_lng: -122.2730,
+        query: trimmedInput.length > 250 ? trimmedInput.substring(0, 250) : trimmedInput,
+        output: data || {}
+      }),
+    });
     setChatHistory((prev) => {
       const withoutLoading = prev.filter(
         (msg) => !(msg.role === "bot" && msg.text === "Thinking...")

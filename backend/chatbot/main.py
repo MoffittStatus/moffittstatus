@@ -795,6 +795,7 @@ Requirements:
 - Make the recommendation feel personally chosen.
 - Do not invent facts beyond the known facts.
 - Do not use bullet points.
+- ONLY EVER recommend food in cafes, NOT in other locations
 - Keep it under 90 words.
 """
 

@@ -733,7 +733,8 @@ const RoutingControl = ({ start, end }: RoutingProps) => {
       const [userLocation, setUserLocation] = useState<L.LatLngExpression | null>(null);
       const [destination, setDestination] = useState<L.LatLng | null>(null);
       const [hasFoundUser, setHasFoundUser] = useState(false);
-  
+      const [showSuggestions, setShowSuggestions] = useState(false);
+
       const filteredSpots = useMemo(() => {
         if (!searchText.trim()) return [];
         return BERKELEY_SPOTS.filter((spot) =>
@@ -799,40 +800,43 @@ const RoutingControl = ({ start, end }: RoutingProps) => {
               width: 'min(420px, 90%)',
               background: 'white',
               padding: '10px',
-              borderRadius: '10px',
+              borderRadius: '0px',
               boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
             }}
+            className='rounded-md'
           >
             <input
               type="text"
               value={searchText}
+              onFocus={() => setShowSuggestions(true)}
               onChange={(e) => setSearchText(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && filteredSpots.length > 0) {
                   goToSpot(filteredSpots[0]);
+                  setShowSuggestions(false);
                 }
               }}
               placeholder="Search Berkeley spots..."
               style={{
                 width: '100%',
                 padding: '10px 12px',
-                fontSize: '14px',
+                fontSize: '12px',
                 border: '1px solid #ccc',
                 borderRadius: '8px',
                 outline: 'none',
               }}
             />
   
-            {filteredSpots.length > 0 && (
+            {showSuggestions && filteredSpots.length > 0 && (
               <div style={{ marginTop: 8, maxHeight: 220, overflowY: 'auto' }}>
                 {filteredSpots.map((spot) => (
                   <div
                     key={spot.name}
-                    onClick={() => goToSpot(spot)}
+                    onClick={() => {goToSpot(spot); setShowSuggestions(false);}}
                     style={{
                       padding: '8px 10px',
                       cursor: 'pointer',
-                      borderRadius: '6px',
+                      borderRadius: '0px',
                     }}
                   >
                     {spot.name}

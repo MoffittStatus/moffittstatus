@@ -66,3 +66,17 @@ model TrafficLog {
 
   @@index([libraryId, createdAt])
 }
+
+model OskiSearch {
+  id         Int      @id @default(autoincrement())
+  userLat    Float?
+  userLng    Float?
+  query      String
+  name       String?
+  lat        Float?
+  lng        Float?
+  pitch      String?  @db.Text
+  debugSteps Json?
+  output     Json
+  createdAt  DateTime @default(now())
+}
