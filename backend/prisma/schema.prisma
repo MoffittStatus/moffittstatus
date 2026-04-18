@@ -80,3 +80,14 @@ model OskiSearch {
   output     Json
   createdAt  DateTime @default(now())
 }
+
+model PageVisit {
+  id          Int      @id @default(autoincrement())
+  page        String
+  bucketStart DateTime
+  count       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([page, bucketStart])
+}
