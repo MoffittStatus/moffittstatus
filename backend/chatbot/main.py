@@ -599,12 +599,11 @@ def retrieve_node(state: GraphState) -> Dict[str, Any]:
             )
     else:
         candidates = expanded_vector_candidates(state["user_query"])
-
-    candidates = sort_candidates_by_distance(
-        candidates,
-        state["user_lat"],
-        state["user_lng"],
-    )
+        candidates = sort_candidates_by_distance(
+            candidates,
+            state["user_lat"],
+            state["user_lng"],
+        )
 
     preview = ", ".join(c["name"] for c in candidates[:8]) if candidates else "none"
     debug_steps.append(f"Candidates -> {preview}")

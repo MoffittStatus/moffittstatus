@@ -85,6 +85,7 @@ def seed_graph():
                 MERGE (h_wurster:Place {name: "Wurster Hall", type: "Hall"}) ON CREATE SET h_wurster.lat = 37.8706, h_wurster.lng = -122.2547, h_wurster.url = "https://www.google.com/maps/search/?api=1&query=37.8706,-122.2547"
                 MERGE (h_haas:Place {name: "Haas School of Business", type: "Hall"}) ON CREATE SET h_haas.lat = 37.8715, h_haas.lng = -122.2536, h_haas.url = "https://www.google.com/maps/search/?api=1&query=37.8715,-122.2536"
                 MERGE (h_chou:Place {name: "Chou Hall", type: "Hall"}) ON CREATE SET h_chou.lat = 37.8718, h_chou.lng = -122.2533, h_chou.url = "https://www.google.com/maps/search/?api=1&query=37.8718,-122.2533"
+                MERGE (h_moffitt:Place {name: "Moffitt Library", type: "Hall"}) ON CREATE SET h_moffitt.lat = 37.8724, h_moffitt.lng = -122.2609, h_moffitt.url = "https://www.google.com/maps/search/?api=1&query=37.8724,-122.2609"
 
                 // MERGE ENGINEERING & COMPUTER SCIENCE
                 MERGE (h_soda:Place {name: "Soda Hall", type: "Hall"}) ON CREATE SET h_soda.lat = 37.8756, h_soda.lng = -122.2588, h_soda.url = "https://www.google.com/maps/search/?api=1&query=37.8756,-122.2588"
@@ -170,6 +171,79 @@ def seed_graph():
 
                 MERGE (h_giannini)-[:NEAR]->(h_hilgard)
                 MERGE (h_hilgard)-[:NEAR]->(h_wellman)
+
+                // --- CAFE ↔ HALL NEAR RELATIONSHIPS ---
+                // FSM Cafe is inside Moffitt, near Doe and Dwinelle
+                MERGE (c_fsm)-[:INSIDE]->(h_moffitt)
+                MERGE (c_fsm)-[:NEAR]->(l_doe)
+                MERGE (c_fsm)-[:NEAR]->(h_dwinelle)
+                MERGE (c_fsm)-[:NEAR]->(h_wheeler)
+
+                // GBC on Sproul Plaza, near Dwinelle, Wheeler, Sproul
+                MERGE (c_gbc)-[:NEAR]->(h_dwinelle)
+                MERGE (c_gbc)-[:NEAR]->(h_wheeler)
+                MERGE (c_gbc)-[:NEAR]->(a_sproul)
+                MERGE (c_gbc)-[:NEAR]->(a_mlk)
+
+                // Brown's is in VLSB area
+                MERGE (c_browns)-[:NEAR]->(h_vlsb)
+                MERGE (c_browns)-[:NEAR]->(l_social)
+                MERGE (c_browns)-[:NEAR]->(h_giannini)
+
+                // Cafe Think near Haas
+                MERGE (c_think)-[:NEAR]->(h_haas)
+                MERGE (c_think)-[:NEAR]->(h_chou)
+                MERGE (c_think)-[:NEAR]->(h_wurster)
+
+                // Ramona's inside Wurster
+                MERGE (c_ramonas)-[:INSIDE]->(h_wurster)
+                MERGE (c_ramonas)-[:NEAR]->(h_haas)
+
+                // Qualcomm inside Sutardja Dai
+                MERGE (c_qualcomm)-[:INSIDE]->(h_sutardja)
+                MERGE (c_qualcomm)-[:NEAR]->(h_soda)
+                MERGE (c_qualcomm)-[:NEAR]->(h_cory)
+
+                // Terrace Cafe near engineering buildings
+                MERGE (c_terrace)-[:NEAR]->(h_soda)
+                MERGE (c_terrace)-[:NEAR]->(h_etcheverry)
+                MERGE (c_terrace)-[:NEAR]->(h_evans)
+
+                // Yali's in Stanley Hall area
+                MERGE (c_yalis)-[:NEAR]->(h_stanley)
+                MERGE (c_yalis)-[:NEAR]->(h_latimer)
+
+                // Coffee Lab in chemistry plaza
+                MERGE (c_coffee_lab)-[:NEAR]->(h_latimer)
+                MERGE (c_coffee_lab)-[:NEAR]->(h_hildebrand)
+                MERGE (c_coffee_lab)-[:NEAR]->(h_pimentel)
+                MERGE (c_coffee_lab)-[:NEAR]->(h_tan)
+
+                // --- HALL ↔ HALL NEAR RELATIONSHIPS ---
+                MERGE (h_dwinelle)-[:NEAR]->(h_wheeler)
+                MERGE (h_dwinelle)-[:NEAR]->(l_doe)
+                MERGE (h_wheeler)-[:NEAR]->(l_doe)
+                MERGE (h_wheeler)-[:NEAR]->(h_social_sci)
+                MERGE (h_vlsb)-[:NEAR]->(h_hilgard)
+                MERGE (h_wurster)-[:NEAR]->(h_anthro_art)
+                MERGE (h_evans)-[:NEAR]->(h_campbell)
+                MERGE (h_evans)-[:NEAR]->(h_stanley)
+                MERGE (h_stanley)-[:NEAR]->(h_latimer)
+                MERGE (h_sutardja)-[:NEAR]->(h_soda)
+                MERGE (h_sutardja)-[:NEAR]->(h_cory)
+                MERGE (h_etcheverry)-[:NEAR]->(h_soda)
+                MERGE (a_sproul)-[:NEAR]->(a_mlk)
+                MERGE (a_sproul)-[:NEAR]->(h_dwinelle)
+                MERGE (a_sproul)-[:NEAR]->(h_wheeler)
+
+                // --- LIBRARY ↔ HALL NEAR RELATIONSHIPS ---
+                MERGE (l_doe)-[:NEAR]->(l_bancroft)
+                MERGE (l_doe)-[:NEAR]->(h_moffitt)
+                MERGE (l_engineering)-[:NEAR]->(h_soda)
+                MERGE (l_engineering)-[:NEAR]->(h_cory)
+                MERGE (l_bioscience)-[:NEAR]->(h_vlsb)
+                MERGE (l_env_design)-[:NEAR]->(h_wurster)
+                MERGE (l_business)-[:NEAR]->(h_haas)
             """)
             print("Graph seeded!")
 
