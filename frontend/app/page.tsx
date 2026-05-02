@@ -150,5 +150,7 @@ export default async function Page() {
   };
 
   const result = await loadLibraries();
-  return (<DiscoverPage data={result}></DiscoverPage>)
+  // return (<DiscoverPage data={result}></DiscoverPage>)
+  return (<LibraryStatusPage data={result}></LibraryStatusPage>)
+
 }
