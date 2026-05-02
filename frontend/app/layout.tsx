@@ -8,7 +8,7 @@ import PageVisitTracker from "@/components/analytics/pageVisitTracker";
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "Moffitt Status",
+  title: "MoffittStatus",
   description: "Berkeley's trusted library status platform",
 };
 

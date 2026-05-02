@@ -144,8 +144,8 @@ export default async function Page() {
 
     } catch (error) {
       console.error("Failed to load library data", error);
-	return processedData || [];
-}
+      return [];
+    }
   };
 
   const result = await loadLibraries();
