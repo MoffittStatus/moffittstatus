@@ -121,7 +121,7 @@ type Library = {
     weeklySchedule?:any;
   };
   const DynamicMapComponent  = dynamic<MapComponentProps>(
-    () => import('../../map/MapComponent').then((mod) => mod.default),
+    () => import('@/app/components/map/MapComponent').then((mod) => mod.default),
     {
       loading: () => <></>,
       ssr: false,
