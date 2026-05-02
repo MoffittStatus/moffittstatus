@@ -54,12 +54,22 @@ function getSlugFromName(name: string): string {
 export default async function Page() {
   const loadLibraries = async () => {
     try {
-      const [allLibraries, allRatingsRes] = await Promise.all([
+      const [librariesResult, ratingsResult] = await Promise.allSettled([
         getAllLibraryHours(),
-        getAllLibraryRatings()
-      ]); 
-      console.log("Finished")
-        const ratingsRaw = allRatingsRes?.data?.data || [];
+        getAllLibraryRatings(),
+      ]);
+      
+      const allLibraries =
+        librariesResult.status === "fulfilled" ? librariesResult.value : [];
+      
+      const allRatingsRes =
+        ratingsResult.status === "fulfilled" ? ratingsResult.value : null;
+      
+      if (ratingsResult.status === "rejected") {
+        console.error("Ratings failed, continuing without ratings", ratingsResult.reason);
+      }
+      
+      const ratingsRaw = allRatingsRes?.data?.data || [];
         const ratingsMap: Record<string, number> = {};
         const scheduleMap: Record<string, any> = {};
 
