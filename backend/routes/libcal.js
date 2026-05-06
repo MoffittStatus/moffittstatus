@@ -44,12 +44,12 @@ async function getChecksumForRoom(libraryId, groupId, roomId, dateStr, startTime
     
     if (!availResponse.ok) {
       const text = await availResponse.text();
-      console.error('❌ HTTP Error:', availResponse.status, text);
+      console.error('HTTP Error:', availResponse.status, text);
       return '';
     }
 
     if (!contentType || !contentType.includes('application/json')) {
-      console.error('❌ Response is not JSON');
+      console.error('Response is not JSON');
       return '';
     }
 
@@ -57,7 +57,7 @@ async function getChecksumForRoom(libraryId, groupId, roomId, dateStr, startTime
     console.log('📡 Slots returned:', data.slots?.length || 0);
     
     if (!data.slots || data.slots.length === 0) {
-      console.warn('⚠️ No slots available');
+      console.warn('No slots available');
       return '';
     }
 
@@ -79,12 +79,12 @@ async function getChecksumForRoom(libraryId, groupId, roomId, dateStr, startTime
     });
 
     if (matchingSlot) {
-      console.log('✅ Found matching slot');
-      console.log('✅ Checksum:', matchingSlot.checksum);
+      console.log('Found matching slot');
+      console.log('Checksum:', matchingSlot.checksum);
       return matchingSlot.checksum;
     }
 
-    // console.warn(`⚠️ No slot found for ${targetStart}`);
+    // console.warn(` No slot found for ${targetStart}`);
     // console.log('Available slots:');
     // data.slots.forEach(slot => {
     //   console.log(`  - ${slot.start} to ${slot.end} (checksum: ${slot.checksum?.substring(0, 8)}...)`);
@@ -92,7 +92,7 @@ async function getChecksumForRoom(libraryId, groupId, roomId, dateStr, startTime
 
     return '';
   } catch (error) {
-    console.error('❌ getChecksumForRoom error:', error.message);
+    console.error('getChecksumForRoom error:', error.message);
     console.error(error);
     return '';
   }
@@ -130,7 +130,7 @@ router.post('/book', async (req, res) => {
       userId,
     };
 
-    console.log('📋 Step 1: Getting checksum for specific time...');
+    console.log('Step 1: Getting checksum for specific time...');
     // const checksum = await getChecksumForRoom(libraryId, groupId, roomId, dateStr, startTime, endStr);
     
     // if (!checksum) {
@@ -140,9 +140,9 @@ router.post('/book', async (req, res) => {
     //   });
     // }
 
-    console.log(`✅ Checksum obtained`);
+    console.log(`Checksum obtained`);
 
-    console.log('📋 Step 2: Creating temp booking...');
+    console.log('Step 2: Creating temp booking...');
     const checksumParams = {libraryId, groupId, roomId, dateStr, startTime, endStr}
     console.log('checksum params', checksumParams)
     const { tempBookingId, checksum_ } = await createTempBooking(bookingData, checksum, checksumParams);
@@ -151,9 +151,9 @@ router.post('/book', async (req, res) => {
       throw new Error('Failed to get booking ID');
     }
 
-    console.log(`✅ Temp booking ID: ${tempBookingId}`);
+    console.log(`Temp booking ID: ${tempBookingId}`);
 
-    console.log('✔️ Step 3: Generating booking URL...');
+    console.log('Step 3: Generating booking URL...');
     
     const bookingUrl = generateBookingUrl(bookingData, tempBookingId, checksum_);
 
@@ -163,7 +163,7 @@ router.post('/book', async (req, res) => {
       tempBookingId,
     });
   } catch (error) {
-    console.error('❌ Booking error:', error);
+    console.error('Booking error:', error);
     return res.status(500).json({
       error: 'Booking failed: ' + String(error),
     });

@@ -7,7 +7,6 @@ import { Wifi, SlidersHorizontal, Trophy } from 'lucide-react';
 import HeroImage from '@/public/hero-campanile.png';
 
 export default function HeroSection() {
-  // A helper array for the features list
   const features = [
     {
       icon: Wifi,
@@ -31,19 +30,16 @@ export default function HeroSection() {
 
   return (
     <section className="relative w-full overflow-hidden bg-background">
-      {/* Background Gradient: Fades from white to light blue on the right */}
       <div className="absolute inset-y-0 right-0 w-1/2  lg:block" />
 
       <div className="container relative z-10 mx-auto px-4 py-16 sm:py-24 lg:py-32">
         <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-24">
           
-          {/* === Left Column: Text Content === */}
           <div className="flex flex-col gap-y-8">
             <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl lg:text-6xl">
               Find your study spot in seconds.
             </h1>
 
-            {/* Features List */}
             <ul className="space-y-6">
               {features.map((feature) => (
                 <li key={feature.title} className="flex items-start gap-4">
@@ -62,7 +58,6 @@ export default function HeroSection() {
               ))}
             </ul>
 
-            {/* CTA Button */}
             <div className="mt-4">
               <Button asChild size="lg" className='bg-blue-400 hover:bg-blue-600'>
                 <Link href="/hours">Browse Libraries</Link>
@@ -70,14 +65,13 @@ export default function HeroSection() {
             </div>
           </div>
 
-          {/* === Right Column: Image === */}
           <div className="flex items-center justify-center lg:justify-end">
             <Image
               src={HeroImage}
               alt="A view of the Campanile clock tower at UC Berkeley during sunset"
               width={450}
               height={600}
-              priority // Load this image first as it's above the fold
+              priority
               className="rounded-2xl shadow-xl"
             />
           </div>
