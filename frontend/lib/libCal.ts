@@ -1,10 +1,11 @@
  'use server'
 import fetch from 'node-fetch';
-import { JSDOM } from 'jsdom';
 import * as cheerio from 'cheerio';
 import { BACKEND_URL } from './apiEndPoints';
 
-export const handleQuickBook = async (room, selectedTime) => {
+type RoomSlot = { id: string; time: string; checksum: string }
+
+export const handleQuickBook = async (room: RoomSlot) => {
   console.log("hi\n")
   console.log(BACKEND_URL)
   console.log(room)
@@ -24,92 +25,33 @@ export const handleQuickBook = async (room, selectedTime) => {
     });
 
     if (!response.ok) {
-      const error = await response.json();
+      const error = await response.json() as { error: string };
       throw new Error(error.error);
     }
 
-    const { success, redirectUrl, tempBooking } = await response.json();
+    const { redirectUrl } = await response.json() as { redirectUrl: string };
     console.log(redirectUrl)
     // window.location.href = redirectUrl;
     return redirectUrl
   } catch (error) {
-    console.error('Booking failed:', error);
-    // alert(`Booking failed: ${error.message}`);
+    console.error('Booking failed:', (error as Error).message);
   }
 };
 
-export async function fetchRoomAvailability(dateStr:string,library:string) {
-  // dateStr should be "YYYY-MM-DD", e.g., "2025-11-17"
-  
-  // 1. Calculate the end date (usually just the next day or same day depending on needs)
-  // The request you saw grabbed a 3-day range, let's mimic that or just do 1 day
-  const startDate = new Date(dateStr);
-  const endDate = new Date(startDate);
-  endDate.setDate((startDate.getDate() + 1) ); // Get 24 hours worth
-  
-  const startParam = startDate.toISOString().split('T')[0]; // "2025-11-17"
-  const endParam = endDate.toISOString().split('T')[0];     // "2025-11-18"
-
-  // 2. Prepare the Form Data
-  let formData
-  switch(library){
-    case "main_stacks":
-      formData = new URLSearchParams({
-        lid: '8867',     // Library ID (Main Stacks?)   
-        gid: '16357',    // Group ID
-        eid: '-1',       // Entity ID (usually -1 for "all")
-        seat: '0',
-        seatId: '0',
-        zone: '0',
-        start: startParam, 
-        end: endParam,
-        pageIndex: '0',
-        pageSize: '100' // Bump this up to ensure you get all rooms
-      });
-      break
-    case "kresge":
-      formData = new URLSearchParams({
-        lid: '8863',     // Library ID (Main Stacks?)   
-        gid: '0',    // Group ID
-        eid: '-1',       // Entity ID (usually -1 for "all")
-        seat: '0',
-        seatId: '0',
-        zone: '0',
-        start: startParam, 
-        end: endParam,
-        pageIndex: '0',
-        pageSize: '100' // Bump this up to ensure you get all rooms
-      });
-      break
-  }
-  if (!formData)
-    return {}
+export async function fetchRoomAvailability(dateStr: string, library: string) {
   try {
-    // 3. Send POST request from the Next.js Server (Bypasses CORS)
-    const response = await fetch('https://berkeley.libcal.com/spaces/availability/grid', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-        'Origin': 'https://berkeley.libcal.com', 
-        'Referer': 'https://berkeley.libcal.com/spaces?lid=8867&gid=16357',
-        'X-Requested-With': 'XMLHttpRequest', 
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
-      },
-      body: formData ? formData.toString() : "",
-      cache: 'no-store' // Don't cache this, we want real-time data
-    });
+    const response = await fetch(
+      `${BACKEND_URL}/api/libcal/availability?library=${library}&date=${dateStr}`
+    );
 
     if (!response.ok) {
-      throw new Error(`LibCal refused: ${response.status}`);
+      throw new Error(`Backend returned ${response.status}`);
     }
 
-    const data = await response.json();
-    //console.log(data);
-    return data; // This sends the clean JSON back to your client component
-    
+    return await response.json();
   } catch (error) {
-    console.error("Failed to fetch LibCal:", error);
-    return { slots: [] }; // Return empty if failed
+    console.error("fetchRoomAvailability failed:", error);
+    return { slots: [] };
   }
 }
 const ROOM_NAMES={
@@ -134,55 +76,60 @@ const ROOM_NAMES={
     "62871": "B1M20B (Capacity 10)",
     "62872": "B1M20C (Capacity 10)",
     "62873": "B1M20E (Capacity 15)",
-    "62874": "B1M20F (Capacity 10)"
+    "62874": "B1M20F (Capacity 10)",
+    // Moffitt Library
+    "62878": "Egret, Room 409 (Capacity 4)",
+    "62879": "Goldeneye, Room 411 (Capacity 4)",
+    "62880": "Quail, Room 431 (Capacity 4)",
+    "62881": "Tern, Room 433 (Capacity 4)",
+    "62882": "Warbler, Room 435 (Capacity 4)",
+    "62884": "Room 415 (Capacity 8)",
+    "62885": "Room 417 (Capacity 8)",
+    "62886": "Hemlock, Room 503 (Capacity 4)",
+    "62887": "Ironwood, Room 505 (Capacity 4)",
+    "62888": "Juniper, Room 509 (Capacity 4)",
+    "62889": "Laurel, Room 511 (Capacity 4)",
+    "62890": "Mesquite, Room 513 (Capacity 4)",
+    "62891": "Palm, Room 517 (Capacity 4)",
+    "62892": "Redwood, Room 519 (Capacity 4)",
+    "62893": "Tamarack, Room 521 (Capacity 4)",
+    // Earth Sciences & Map Library
+    "62877": "Seminar Room 55A McCone (Capacity 20)",
+    // East Asian Library
+    "62895": "241 Numata Room (Capacity 10)",
+    "62896": "377 (Capacity 4)",
+    // Environmental Design Library
+    "62869": "210C Bauer Wurster Hall (Capacity 10)",
+    // Institute of Governmental Studies
+    "62876": "Matsui Center Study Room (Capacity 8)",
   }
-  export async function filterRoomsByTime(jsonData, targetDateObj) {
-    const targetTime = targetDateObj.getTime();
-  
-    // 1. PERFORMANCE: Calculate 11 AM once, outside the loop
-    const elevenAmDate = new Date(targetDateObj);
-    elevenAmDate.setHours(11, 0, 0, 0); 
-    const elevenAmTime = elevenAmDate.getTime();
+type LibCalSlot = {
+  itemId: string | number;
+  start: string;
+  end: string;
+  className?: string;
+  checksum?: string;
+}
 
-    // Safety check
-    if (!jsonData || !jsonData.slots) return [];
-  
-    const availableSlots = jsonData.slots.filter((slot) => {
-      // 2. Parse LibCal Date
-      const formattedStart = slot.start.replace(" ", "T");
-      const formattedEnd = slot.end.replace(" ", "T");
+export async function filterRoomsByTime(jsonData: { slots?: LibCalSlot[] }, _targetDateObj: Date) {
+  if (!jsonData || !jsonData.slots) return [];
 
-      const start = new Date(formattedStart).getTime();
-      const end = new Date(formattedEnd).getTime();
+  const availableSlots = jsonData.slots.filter((slot: LibCalSlot) => {
+    // Show all slots that are not already booked
+    // LibCal classes: 's-lc-eq-checkout' (Available), 's-lc-eq-booked' (Booked)
+    const hasCheckoutClass = slot.className && slot.className.includes("s-lc-eq-checkout");
+    return !hasCheckoutClass;
+  });
 
-      // 3. LOGIC FIX: Check if the slot is happening NOW
-      // Logic: 
-      // A. The slot must have started (start <= targetTime)
-      // B. The slot must NOT have ended yet (end > targetTime)
-      // C. (Optional) You wanted a check for 11am? 
-      //    If you only want slots that exist BEFORE 11am, keep the third check:
-      const isTimeMatch = true//(targetTime >= start) && (targetTime < end) && (start < end);
-  
-      // 4. LOGIC FIX: Check for Availability (Green/Checkout)
-      // LibCal classes: 's-lc-eq-checkout' (Available), 's-lc-eq-period' (Padding), 's-lc-eq-booked' (Booked)
-      const hasCheckoutClass = slot.className && slot.className.includes("s-lc-eq-checkout");
-      // if(slot.checksum)
-      //   console.log(slot.checksum)
-      // We want BOTH a time match AND the checkout class
-      return isTimeMatch && !hasCheckoutClass;
-    });
-  
-    // Map to readable format
-    return availableSlots.map((slot) => ({
-      id: slot.itemId,
-      // specific logic to check map names or fallback
-      name: ROOM_NAMES?.[`${slot.itemId}`] || `Unknown Room (${slot.itemId})`, 
-      time: `${slot.start} - ${slot.end}`,
-      checksum: `${slot.checksum}` || '',
-    }));
+  return availableSlots.map((slot: LibCalSlot) => ({
+    id: slot.itemId,
+    name: ROOM_NAMES[String(slot.itemId) as keyof typeof ROOM_NAMES] || `Unknown Room (${slot.itemId})`,
+    time: `${slot.start} - ${slot.end}`,
+    checksum: `${slot.checksum}` || '',
+  }));
 }
     
-export async function getAvailableRooms(selected_hour:string, library:string) {
+export async function getAvailableRooms(_selected_hour: string, library: string) {
     // A. Fetch the data for the specific date you have (Nov 17, 2025)
     const dateStr = new Date().toLocaleDateString('sv-SE', { 
       timeZone: 'America/Los_Angeles' 
@@ -200,25 +147,11 @@ export async function getAvailableRooms(selected_hour:string, library:string) {
     const targetDate = new Date(`${dateStr}T${hour}:00:00`); 
     console.log("Checking availability for:", targetDate.toString());
     // C. Run the filter
-    const freeRooms = await filterRoomsByTime(jsonData, targetDate);
+    const freeRooms = await filterRoomsByTime(jsonData as { slots?: LibCalSlot[] }, targetDate);
     console.log("There are ", freeRooms.length, " free rooms")
     // console.log("Free rooms:", freeRooms)
     return freeRooms;
 }
-interface LibraryHours {
-  name: string;
-  hours: string;
-  address?: string;
-  phone?: string;
-  notes?: string[];
-}
-
-interface LibraryHoursResult {
-  day: string;
-  date: string;
-  libraries: LibraryHours[];
-}
-
 // Define an interface that matches the data available in the DOM
 interface LibraryInfo {
   name: string;

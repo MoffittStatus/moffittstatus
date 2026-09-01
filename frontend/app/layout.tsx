@@ -20,8 +20,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Navbar></Navbar>
-        <PageVisitTracker></PageVisitTracker>
+        <Navbar />
+        <PageVisitTracker />
         <Toaster
           position="top-center"
           toastOptions={{
