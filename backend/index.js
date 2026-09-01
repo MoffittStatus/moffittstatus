@@ -22,7 +22,7 @@ app.use(express.urlencoded({ extended: true }));
 // Mount all routes under /api
 app.use('/api', apiRoutes);
 
-runBatchUpdate();
+runBatchUpdate().catch(err => console.error('runBatchUpdate failed (DB unavailable?):', err.message));
 
 // Simple health check
 app.get('/', (req, res) => {

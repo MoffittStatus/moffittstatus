@@ -212,7 +212,7 @@ export default function RoomsPage() {
     try {
       // NOTE: handleQuickBook has hardcoded libraryId '8867' (Main Stacks).
       // Kresge/other bookings will route through the wrong library ID — acceptable for MVP.
-      const url = await handleQuickBook(room, new Date())
+      const url = await handleQuickBook(room)
       if (url) window.location.href = url
       else toast.error("Booking failed — no redirect URL returned.")
     } catch { toast.error("Booking failed. Please try again.") }

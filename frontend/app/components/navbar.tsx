@@ -1,26 +1,34 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 
 export function Navbar() {
-  const path = usePathname()
-  // Dark pages get a transparent dark navbar; light pages get a white one
-  const isDark = path === '/' || path === '/rooms'
+  const router = useRouter()
 
   return (
-    <nav className={`w-full fixed top-0 left-0 z-50 ${isDark ? 'bg-transparent' : 'bg-white border-b border-gray-100'}`}>
-      <div className="max-w-6xl mx-auto flex items-center justify-between px-6 py-4">
-        <Link href="/" className={`text-sm font-semibold tracking-wide ${isDark ? 'text-white/60 hover:text-white' : 'text-gray-900'} transition-colors`}>
-          MoffittStatus
+    <nav className="w-full fixed top-0 left-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-100">
+      <div className="max-w-screen-2xl mx-auto flex items-center justify-between px-10 py-4">
+        <Link href="/" className="flex items-center gap-2.5 hover:opacity-70 transition-opacity">
+          <div className="w-8 h-8 rounded-full bg-gray-900 flex items-center justify-center">
+            <div className="w-3 h-3 rounded-full bg-white" />
+          </div>
+          <span className="text-sm font-semibold text-gray-900 tracking-wide">MoffittStatus</span>
         </Link>
         <div className="flex items-center gap-6">
-          <Link href="/rooms" className={`text-sm ${isDark ? 'text-white/40 hover:text-white' : 'text-gray-500 hover:text-gray-900'} transition-colors`}>
-            Rooms
-          </Link>
-          <Link href="/libraries" className={`text-sm ${isDark ? 'text-white/40 hover:text-white' : 'text-gray-500 hover:text-gray-900'} transition-colors`}>
+          <Link href="/libraries" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Libraries
           </Link>
+          <Link href="/rooms" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            My Bookings
+          </Link>
+          <button
+            onClick={() => router.push('/login')}
+            className="text-sm font-semibold text-white px-5 py-2 rounded-full transition-opacity hover:opacity-85"
+            style={{ backgroundColor: '#111111' }}
+          >
+            Sign In
+          </button>
         </div>
       </div>
     </nav>
