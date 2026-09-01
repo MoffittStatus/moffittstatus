@@ -2,3 +2,4 @@ moffitstatus
 backend/node_modules
 modeling/node_modules
 backend/venv
+backend/chatbot/__pycache__

@@ -23,12 +23,12 @@ app.prepare().then(() => {
   }));
   expressApp.use(express.json());
   // every 15 minutes
-  cron.schedule('*/15 * * * *', () => {
-    console.log("Cron Triggered: Updating Library Capacity Status...");
-    runBatchUpdate();
-  });
+//  cron.schedule('*/15 * * * *', () => {
+  //  console.log("Cron Triggered: Updating Library Capacity Status...");
+    //runBatchUpdate();
+  //});
 
-  runBatchUpdate();
+  //runBatchUpdate();
 
   // General Backend API routes
   try {

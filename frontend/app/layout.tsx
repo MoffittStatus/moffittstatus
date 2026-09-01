@@ -3,11 +3,12 @@ import "./globals.css";
 import { Navbar } from "./components/navbar";
 import { Toaster } from "@/components/ui/sonner"
 import { Inter } from '@next/font/google'
+import PageVisitTracker from "@/components/analytics/pageVisitTracker";
 
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: "Moffitt Status",
+  title: "MoffittStatus",
   description: "Berkeley's trusted library status platform",
 };
 
@@ -20,6 +21,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <Navbar />
+        <PageVisitTracker />
         <Toaster
           position="top-center"
           toastOptions={{

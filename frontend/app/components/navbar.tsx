@@ -19,6 +19,9 @@ export function Navbar() {
           <Link href="/libraries" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             Libraries
           </Link>
+          <Link href="/discover" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
+            Discover
+          </Link>
           <Link href="/rooms" className="text-sm text-gray-500 hover:text-gray-900 transition-colors">
             My Bookings
           </Link>

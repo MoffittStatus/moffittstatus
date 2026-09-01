@@ -66,3 +66,28 @@ model TrafficLog {
 
   @@index([libraryId, createdAt])
 }
+
+model OskiSearch {
+  id         Int      @id @default(autoincrement())
+  userLat    Float?
+  userLng    Float?
+  query      String
+  name       String?
+  lat        Float?
+  lng        Float?
+  pitch      String?  @db.Text
+  debugSteps Json?
+  output     Json
+  createdAt  DateTime @default(now())
+}
+
+model PageVisit {
+  id          Int      @id @default(autoincrement())
+  page        String
+  bucketStart DateTime
+  count       Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([page, bucketStart])
+}
