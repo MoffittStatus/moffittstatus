@@ -23,6 +23,7 @@ import {
   Armchair,
   Pin,
   Activity, 
+  ChevronRight
 } from "lucide-react";
 import {SubmitReport} from '../../components/submitRating'
 import { cn, getDynamicStyles } from "@/lib/utils";
@@ -195,60 +196,76 @@ export default function LibraryStatusPage({data}) {
     });
 
     return (
-      <div className='bg-gray-200'>
+      <div className='bg-white'>
 
-      <section className='w-full shadow-lg bg-white'>
-      <div>
-      {/* <span className='font-bold justify-center items-center flex flex-row mt-2 rounded-md underline'><button onClick={() => router.push('/discover')}>New to Berkeley? Try out OskiChat to discover new places!</button></span> */}
-
+<section className="w-full bg-white px-4 md:px-32 py-8 max-w-6xl">
+      {/* Header Section */}
+      <div className="md:mb-6">
+        <h1 className="text-xl md:text-4xl font-extrabold tracking-tight text-slate-900 mb-2">
+          Explore Libraries
+        </h1>
+        <p className="text-slate-500 text-xs md:text-base max-w-2xl leading-relaxed">
+          Find the perfect study spot across campus. Search by name or use filters to discover spaces that match your current needs.
+        </p>
       </div>
-              <div className="flex flex-col gap-4 mb-4">
-              <div className="relative flex-grow flex justify-center items-center py-4">
 
-    <div className="relative w-full max-w-sm">
-      <Input
-        type="search"
-        placeholder="Search libraries..."
-        className="w-full pl-12 text-md md:text-md font-strong border-none  bg-gray-200 rounded-full 
-                   focus:border-transparent focus:ring-0 focus:ring-transparent
-                   placeholder:text-gray-400 font-light transition-all duration-300
-                   shadow-sm hover:shadow-md"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-      />
-      <Search className="absolute left-6 top-1/2 -translate-y-1/2 h-6 w-4 text-gray-400" />
-    </div>
-  </div>
-              </div>
-              <div className="flex flex-wrap gap-2 flex-row items-center justify-center">
-              <div className="flex flex-wrap gap-2 mb-6 ml-4 mr-4">
-              {featureConfig.map((feature) => {
-                const Icon = feature.icon;
-                const isSelected = selectedFilters.includes(feature.key);
-  
-                return (
-                  <Badge
-                    key={feature.key}
-                    onClick={() => toggleFilter(feature.key)}
-                    variant={isSelected ? "default" : "outline"}
-                    className={`
-                      cursor-pointer select-none transition-all duration-200 gap-1 pr-3
-                      ${isSelected 
-                        ? `bg-gray-900 text-white border-transparent shadow-sm`
-                        : " hover:bg-gray-600/50 border-none bg-gray-200"
-                      }
-                    `}
-                  >
-                    <Icon className={`h-3 w-3 ${isSelected ? "text-current" : "text-muted-foreground"}`} />
-                    {feature.label}
-                    {isSelected}
-                  </Badge>
-                );
-              })}
-            </div>
-            </div>
-  
-            </section> 
+      {/* Compound Search Input Bar */}
+      <div className="mb-6 max-w-3xl">
+        <div className="relative flex items-center w-full border border-gray-200 rounded-2xl bg-white shadow-xs focus-within:ring-2 focus-within:ring-slate-300 focus-within:border-transparent transition-all">
+          
+          {/* Left Segment: Category Dropdown / Indicator */}
+          <div className="flex items-center gap-2 px-4 py-3.5 border-r border-gray-200 text-slate-500 text-sm font-medium shrink-0">
+            <Search className="h-4 w-4 text-slate-400" />
+            <span>All libraries</span>
+          </div>
+
+          {/* Search Input Field */}
+          <input
+            type="text"
+            placeholder="Search by library name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-transparent px-4 py-3.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
+          />
+
+          {/* Keyboard Shortcut Badge */}
+          {/* <div className="pr-4 flex items-center shrink-0">
+            <kbd className="px-2 py-1 text-xs font-medium text-slate-400 bg-slate-100 rounded-md border border-slate-200">
+              ⌘ K
+            </kbd>
+          </div> */}
+        </div>
+      </div>
+
+      {/* Suggestions Header & Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex items-center gap-1.5 text-slate-500 text-xs font-bold tracking-wider mr-1 uppercase">
+          <Filter className="h-3.5 w-3.5" />
+          <span>Suggestions</span>
+        </div>
+
+        {featureConfig.map((feature) => {
+          const isSelected = selectedFilters.includes(feature.key);
+
+          return (
+            <button
+              key={feature.key}
+              onClick={() => toggleFilter(feature.key)}
+              className={`
+                inline-flex items-center gap-1 px-4 py-2 rounded-full text-sm font-medium transition-all border select-none
+                ${isSelected 
+                  ? "bg-purple-100 text-purple-700 border-purple-200 shadow-xs" 
+                  : "bg-white text-slate-700 border-gray-200 hover:bg-slate-50 hover:border-gray-300"
+                }
+              `}
+            >
+              <span>{isSelected ? "✓" : "+"}</span>
+              <span>{feature.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
       <main className="container w-full p-4 md:p-8 mx-auto" >  
         <section className="space-y-6">   
           <div>
@@ -257,106 +274,103 @@ export default function LibraryStatusPage({data}) {
                 const roomPercent = (lib.roomsOpen / lib.roomsTotal) * 100;
                 const isPinned = pinnedIds.includes(lib.id)
                 return (
-                  <Card key={lib.id} className="overflow-hidden p-0 gap-0 rounded-[2rem] border-none bg-transparent shadow-none ">
-                    <CardHeader className="p-0 [.border-b]:pb-6">
-                    <div className="relative h-64 w-full overflow-hidden rounded-[1.5rem]">
-        <img
-          src={lib.image}
-          alt={`${lib.name} exterior`}
-          className="h-full w-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/60 to-transparent pointer-events-none" />
-        <div className="absolute top-3 left-3 z-20">
-        {lib.isOpen ? (
-                          <StatusBadge crowdLevel={lib.crowdLevel} variant=""></StatusBadge>
+                  <Card 
+                    key={lib.id} 
+                    className="p-0 overflow-hidden rounded-3xl border border-slate-100 bg-white shadow-xs transition-all hover:shadow-md"
+                  >
+                    {/* Top Image Section (Flush with top/left/right borders) */}
+                    <div className="relative h-52 w-full overflow-hidden">
+                      <img
+                        src={lib.image}
+                        alt={`${lib.name} exterior`}
+                        className="h-full w-full object-cover"
+                      />
+                
+                      {/* Top Left: Status Badge */}
+                      <div className="absolute top-3 left-3 z-10">
+                        {lib.isOpen ? (
+                          <StatusBadge crowdLevel={lib.crowdLevel} variant="" />
                         ) : (
-                          <div className="flex items-center font-bold py-0 rounded-full">
-                            <StatusBadge 
-                              variant="closed" 
-                              className="" 
-                              crowdLevel={0}
-                            />
-                          </div>
+                          <StatusBadge variant="closed" crowdLevel={0} />
                         )}
-      </div>
-      <div className='absolute bottom-4 left-4 z-20'>
-        
-      <CardTitle className="text-lg font-sans text-gray-100 tracking-tight leading-tight w-full" style={{ whiteSpace: 'pre-wrap' }}>
-            {lib.name}
-          </CardTitle>       
-          {(lib.hours && lib.hours.length > 3 && (!lib.hours.includes('Closed') && lib.hours.length > 0)) && 
-              <div className="flex items-center text-slate-600 bg-transparent py-1 rounded-full border-none border-slate-100">
-                <Clock className="mr-2 h-3 w-3 text-gray-200" />
-                <span style={{ whiteSpace: 'pre-wrap' }} className='text-white font-extralight text-xs'>{lib.hours}</span>
-              </div>
-            }
-  
-          <Separator.Root
-            decorative
-            orientation="horizontal"
-            className="mt-2 mb-1 h-px w-[350px] bg-gray-400/30"
-          />        
-          <div className="flex flex-wrap gap-1 items-center">
-            {featureConfig.map((feature) => {
-              const isActive = lib.features[feature.key];
-              const IconComponent = feature.icon;
-              return (
-                <div key={feature.key}>
-                <Tooltip>
-                  <TooltipTrigger>
-                <div
-                  title={isActive ? feature.label : `No ${feature.label}`}
-                  className={`
-                    relative flex items-center justify-center w-6 h-6 rounded-full border-none transition-all duration-200 ease-in-out
-                    ${isActive 
-                      ? `scale-100 opacity-100 text-gray-200` 
-                      : "bg-transparent border-transparent text-gray-100/20 scale-90 grayscale"
-                    }
-                  `}
-                >
-                  
-                  <IconComponent 
-                    className={`h-4 w-4`} 
-                  />
-                </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>{isActive ? feature.label : `No ${feature.label}`}</p>
-                </TooltipContent>
-              </Tooltip>
-              </div>
-              );
-            })}
-  
-          </div>
-      </div>
-      
-  
-            <Button
-            size="sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(lib.url, '_blank');
-            }}
-            className="absolute top-3 right-6 h-6 p-1 bg-gray-800/60 backdrop-blur-md text-white border-0 rounded-full transition-all duration-300 ease-spring hover:scale-105 active:scale-95 hover:bg-gray-600 hover:border-blue-200 hover:shadow-md group"
-          >
-            <MapPin className="mr-0 h-2 w-2 opacity-80 transition-transform group-hover:rotate-12" />
-          </Button>
-      </div>
-                    </CardHeader>
-  
-                    <CardContent className="gap-y-4 m-0">
-                      
+                      </div>
+                
+                      {/* Top Right: Map Location Button */}
+                      <Button
+                        size="icon"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          window.open(lib.url, '_blank');
+                        }}
+                        className="absolute top-3 right-3 h-8 w-8 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 border-none transition-transform active:scale-95"
+                      >
+                        <MapPin className="h-4 w-4" />
+                      </Button>
+                
+                      {/* Bottom Left Badge: Available Rooms Overlay */}
+                      {lib.availableRooms && (
+                        <div className="absolute bottom-3 left-3 z-10 px-3 py-1 bg-black/60 backdrop-blur-md rounded-lg text-white text-xs font-medium border border-white/10">
+                          {lib.availableRooms} rooms available
+                        </div>
+                      )}
+                    </div>
+                
+                    {/* Card Body Section */}
+                    <CardContent className="p-5 flex flex-col gap-3">
+                      {/* Title */}
+                      <CardTitle className="text-xl font-bold text-slate-900 leading-snug tracking-tight">
+                        {lib.name}
+                      </CardTitle>
+                
+                      {/* Hours */}
+                      {lib.hours && !lib.hours.includes('Closed') && (
+                        <div className="flex items-center text-slate-500 text-sm gap-2">
+                          <Clock className="h-4 w-4 text-slate-400 shrink-0" />
+                          <span>{lib.hours}</span>
+                        </div>
+                      )}
+                
+                      {/* Horizontal Divider */}
+                      <div className="w-full border-t border-slate-100 my-1" />
+                
+                      {/* Feature Icons Row */}
+                      <div className="flex items-center gap-3.5 text-slate-400">
+                        {featureConfig.map((feature) => {
+                          const isActive = lib.features[feature.key];
+                          const IconComponent = feature.icon;
+                          return (
+                            <Tooltip key={feature.key}>
+                              <TooltipTrigger asChild>
+                                <div
+                                  className={`transition-colors ${
+                                    isActive ? "text-slate-600" : "text-slate-300 opacity-50"
+                                  }`}
+                                >
+                                  <IconComponent className="h-4 w-4" />
+                                </div>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>{isActive ? feature.label : `No ${feature.label}`}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        })}
+                      </div>
+                
+                      {/* Action Button */}
+                      {lib.availableRooms && (
+                        <Button 
+                          variant="ghost" 
+                          className="w-full mt-2 py-2.5 rounded-2xl bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-600 font-semibold text-sm flex items-center justify-center gap-1 transition-colors"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // Navigation logic for room booking/details
+                          }}
+                        >
+                          View Rooms <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      )}
                     </CardContent>
-                    
-                    
-                    <CardFooter className='gap-x-2 mb-0 [.border-t]:pt-0'>
-                    
-                      
-                    </CardFooter>
-                    { lib.calID && 
-                        <span className='flex items-right justify-start ml-6 mt-0 p-0 text-slate-400 font-sm mr-4' style={{ whiteSpace: 'pre-wrap' }}>{lib.calID}</span>
-                        }
                   </Card>
                 );
               })}

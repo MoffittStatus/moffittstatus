@@ -1,4 +1,8 @@
 import * as React from "react";
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { getAllLibraryRatings } from '@/lib/firebaseMethods';
 import { getAllLibraryHours, getAvailableRooms } from '@/lib/libCal';
 import LibraryStatusPage from './components/main/main';
@@ -41,7 +45,8 @@ function getSlugFromName(name: string): string {
     "Main (Gardner) Stacks": "main_stacks",
     "Moffitt Library": "moffitt",
     "Doe Library": "doe",
-    "Kresge Engineering Library": "kresge"
+    "Kresge Engineering Library": "kresge",
+    "Engineering & Mathematical Sciences Library": "kresge"
   };
 
   if (overrides[name]) return overrides[name];
@@ -124,6 +129,9 @@ export default async function Page() {
         const roomData = lib.hasStudySpace && false
         ? await getAvailableRooms("6 pm", slug).catch(() => []) 
         : [];
+        if (roomData.length > 0){
+          console.log(roomData);
+        }
         const [displayHours, calID] = hoursFix(lib.hours) || ["", ""];
 
         return {
