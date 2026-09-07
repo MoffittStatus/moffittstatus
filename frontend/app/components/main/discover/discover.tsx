@@ -57,9 +57,11 @@ import { LibrariesLoading } from '../../librariesLoading';
 import { StatusDot } from '../../statusDot';
 import { StatusBadge } from '../../statusBadge';
 import { BusynessPopup } from '../../busynessPopup';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import { MapComponentHandle, MapComponentProps } from '../../map/MapComponent';
 import { BACKEND_URL, CHATBOT_URL } from '@/lib/apiEndPoints';
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 const featureConfig = [
     { 
       key: "late", 
@@ -120,7 +122,7 @@ type Library = {
     studyLink?:string;
     weeklySchedule?:any;
   };
-  const DynamicMapComponent  = dynamic<MapComponentProps>(
+  const DynamicMapComponent  = nextDynamic <MapComponentProps>(
     () => import('@/app/components/map/MapComponent').then((mod) => mod.default),
     {
       loading: () => <></>,

@@ -196,9 +196,9 @@ export default function LibraryStatusPage({data}) {
     });
 
     return (
-      <div className='bg-white'>
+      <div className='bg-gray-50'>
 
-<section className="w-full bg-white px-4 md:px-32 py-8 max-w-6xl">
+<section className="w-full px-4 md:px-32 py-8 max-w-6xl">
       {/* Header Section */}
       <div className="md:mb-6">
         <h1 className="text-xl md:text-4xl font-extrabold tracking-tight text-slate-900 mb-2">
@@ -316,7 +316,7 @@ export default function LibraryStatusPage({data}) {
                     </div>
                 
                     {/* Card Body Section */}
-                    <CardContent className="p-5 flex flex-col gap-3">
+                    <CardContent className="p-5 flex flex-col gap-3 pt-0">
                       {/* Title */}
                       <CardTitle className="text-xl font-bold text-slate-900 leading-snug tracking-tight">
                         {lib.name}
