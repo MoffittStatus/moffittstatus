@@ -317,7 +317,7 @@ export default function LibraryStatusPage({data}) {
                     </div>
                 
                     {/* Card Body Section */}
-                    <CardContent className="p-5 pb-0 md:pb-5 flex flex-col gap-3 pt-0">
+                    <CardContent className="p-5 flex flex-col gap-3 pt-0">
                       {/* Title */}
                       <CardTitle className="text-xl font-bold text-slate-900 leading-snug tracking-tight">
                         {lib.name}
