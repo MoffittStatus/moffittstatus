@@ -59,6 +59,7 @@ import { StatusBadge } from '../../components/statusBadge';
 import { BusynessPopup } from '../../components/busynessPopup';
 import { redirect, RedirectType } from 'next/navigation';
 import { useRouter } from 'next/navigation';
+import ScheduleChart from '../scheduleChart';
 const featureConfig = [
     { 
       key: "late", 
@@ -316,7 +317,7 @@ export default function LibraryStatusPage({data}) {
                     </div>
                 
                     {/* Card Body Section */}
-                    <CardContent className="p-5 flex flex-col gap-3 pt-0">
+                    <CardContent className="p-5 pb-0 md:pb-5 flex flex-col gap-3 pt-0">
                       {/* Title */}
                       <CardTitle className="text-xl font-bold text-slate-900 leading-snug tracking-tight">
                         {lib.name}
@@ -329,7 +330,9 @@ export default function LibraryStatusPage({data}) {
                           <span>{lib.hours}</span>
                         </div>
                       )}
-                
+
+                      { lib.isOpen && lib.hours.length > 3 && <ScheduleChart name={lib.name} operatingHours={lib.hours}></ScheduleChart> }
+
                       {/* Horizontal Divider */}
                       <div className="w-full border-t border-slate-100 my-1" />
                 

@@ -89,12 +89,12 @@ export default async function Page() {
 
         const initialData = (allLibraries || []).map((lib, index) => {
           const slug = getSlugFromName(lib.name);
-          const [displayHours, calID] = hoursFix(lib.hours) || ["", ""];
+          let [displayHours, calID] = hoursFix(lib.hours) || ["", ""];
   
           return {
             id: index,
             name: lib.name,
-            hours: displayHours,
+            hours: displayHours && displayHours.length > 3 ? displayHours : "",
             calID: calID,
             isOpen: (lib.status || '').toLowerCase().includes('open'),
             crowdLevel: ratingsMap[slug] || 60,
