@@ -298,7 +298,7 @@ export default function LibraryStatusPage({data}) {
                       {/* Bottom Left Badge: Available Rooms Overlay */}
                       {lib.isOpen && lib.roomsTotal > 0 && (
                         <div className="absolute bottom-3 left-3 z-10 px-3 py-1 bg-black/60 backdrop-blur-md rounded-lg text-white text-xs font-medium border border-white/10">
-                          {lib.roomsOpen} {lib.roomsOpen.length > 1 ? "rooms" : "room"} available
+                          {lib.roomsOpen} {lib.roomsOpen > 1 ? "rooms" : "room"} available
                         </div>
                       )}
                     </div>

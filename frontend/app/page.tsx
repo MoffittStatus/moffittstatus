@@ -66,7 +66,7 @@ export default async function Page() {
         // displayHours = displayHours.replace(".","")
         console.log("Hours:", displayHours)
         const roomData = lib.hasStudySpace
-        ? await getAvailableRooms(displayHours, slug).catch(() => []) 
+        ? await getAvailableRooms(null, slug).catch(() => []) 
         : [];
         if (roomData.length > 0){
           console.log(roomData);

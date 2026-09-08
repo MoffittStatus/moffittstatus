@@ -108,7 +108,7 @@ export default async function Page() {
         const crowdLevel = ratingsMap[lib.name] || 60;
         
         const roomData = lib.hasStudySpace && false
-        ? await getAvailableRooms("6 pm", slug).catch(() => []) 
+        ? await getAvailableRooms(null, slug).catch(() => []) 
         : [];
         const [displayHours, calID] = hoursFix(lib.hours) || ["", ""];
 
