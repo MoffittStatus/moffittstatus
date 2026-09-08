@@ -3,6 +3,7 @@ import { getAllLibraryRatings } from '@/lib/firebaseMethods';
 import { getAllLibraryHours, getAvailableRooms } from '@/lib/libCal';
 import LibraryStatusPage from '../components/main/main';
 import DiscoverPage from "../components/main/discover/discover";
+import { getCurrentHourlyData } from "@/lib/gMapCapacities";
 
 function hoursFix (input:string) { 
   if (input.includes('Starts')){
@@ -54,76 +55,27 @@ function getSlugFromName(name: string): string {
 export default async function Page() {
   const loadLibraries = async () => {
     try {
-      const [librariesResult, ratingsResult] = await Promise.allSettled([
-        getAllLibraryHours(),
-        getAllLibraryRatings(),
+      const [librariesResult] = await Promise.allSettled([ // , ratingsResult
+        getAllLibraryHours()
+        // getAllLibraryRatings(),
       ]);
       
       const allLibraries =
         librariesResult.status === "fulfilled" ? librariesResult.value : [];
       
-      const allRatingsRes =
-        ratingsResult.status === "fulfilled" ? ratingsResult.value : null;
-      
-      if (ratingsResult.status === "rejected") {
-        console.error("Ratings failed, continuing without ratings", ratingsResult.reason);
-      }
-      
-      const ratingsRaw = allRatingsRes?.data?.data || [];
-        const ratingsMap: Record<string, number> = {};
-        const scheduleMap: Record<string, any> = {};
-
-        ratingsRaw.forEach((r: any) => {
-          const key = r.library; 
-          ratingsMap[key] = parseFloat(r.average);
-          scheduleMap[key] = r.weeklySchedule;
-          console.log(r.weeklySchedule)
-        });
-  
-        console.log("Ratings Map Created:", ratingsMap);
-
-        const initialData = (allLibraries || []).map((lib, index) => {
-          const slug = getSlugFromName(lib.name);
-          const [displayHours, calID] = hoursFix(lib.hours) || ["", ""];
-  
-          return {
-            id: index,
-            name: lib.name,
-            hours: displayHours,
-            calID: calID,
-            isOpen: (lib.status || '').toLowerCase().includes('open'),
-            crowdLevel: ratingsMap[slug] || 60,
-            features: lib.services ? fixData(lib.services) : {},
-            nameID: slug,
-            url: lib.googleMapsLink,
-            image: lib.imageSrc,
-            studyLink: lib.studySpaceLink,
-            hasStudySpace: lib.hasStudySpace,
-            weeklySchedule:scheduleMap[lib.name] || [],
-            rooms: [], 
-            roomsOpen: -1,
-            roomsTotal: 0
-          };
-        });
-        console.log(initialData[0].weeklySchedule)
-        console.log(initialData[1].weeklySchedule)
-        console.log(initialData[2].weeklySchedule)
-        console.log(initialData[3].weeklySchedule)
-        console.log(initialData[4].weeklySchedule)
-        console.log(initialData[5].weeklySchedule)
-        console.log(initialData[6].weeklySchedule)
-        console.log(initialData[7].weeklySchedule)
-        console.log(initialData[8].weeklySchedule)
         console.log("Pass 1: Basic info loaded");
       const libraryPromises = allLibraries!.map(async (lib, index) => {
 
-        const slug = getSlugFromName(lib.name);
-
-        const crowdLevel = ratingsMap[lib.name] || 60;
+        const slug = getSlugFromName(lib.name);   
+        let capData = getCurrentHourlyData(lib.name);
+        const crowdLevel = capData ? (capData["percentage"] || 30) : 30; //ratingsMap[lib.name] || 60;
         
         const roomData = lib.hasStudySpace && false
         ? await getAvailableRooms("6 pm", slug).catch(() => []) 
         : [];
+        if (roomData.length > 0){
+          console.log(roomData);
+        }
         const [displayHours, calID] = hoursFix(lib.hours) || ["", ""];
 
         return {
@@ -139,7 +91,7 @@ export default async function Page() {
           roomsTotal: roomData.length || 0,
           
           crowdLevel: crowdLevel,
-          weeklySchedule:scheduleMap[lib.name] || [],
+          // weeklySchedule:scheduleMap[lib.name] || [],
           features: lib.services ? fixData(lib.services) : {},
           nameID: slug,
           url: lib.googleMapsLink,
@@ -155,6 +107,7 @@ export default async function Page() {
 
     } catch (error) {
       console.error("Failed to load library data", error);
+      return [];
     }
   };
 

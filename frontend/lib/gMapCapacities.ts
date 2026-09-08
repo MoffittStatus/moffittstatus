@@ -4510,3 +4510,46 @@ export function getScheduleByName(targetName:string) {
 
     return library ? library.historical_schedule : null;
 }
+
+
+export function getCurrentDayAndHour() {
+  const now = new Date();
+  
+  return {
+    day: now.toLocaleDateString("en-US", { weekday: "long" }),
+    hour: now.getHours() // 0 - 23 index matching the hourly array
+  };
+}
+
+export function getHourlyData(
+  targetName: string, 
+  day: string, 
+  hour: number
+) {
+  const schedule = getScheduleByName(targetName);
+  if (!schedule) return null;
+
+  // Format day string to match keys (e.g., "monday" -> "Monday")
+  const formattedDay = day.charAt(0).toUpperCase() + day.slice(1).toLowerCase();
+  const dayData = schedule[formattedDay];
+
+  // Validate day exists and hour is within 0–23 range
+  if (!dayData || hour < 0 || hour > 23) return null;
+
+  return {
+    percentage: dayData.hourly_percentages[hour],
+    estimatedCount: dayData.hourly_estimated_count[hour]
+  };
+}
+
+export function getCurrentHourlyData(targetName: string) {
+  const now = new Date();
+
+  // Returns full day name (e.g., "Monday", "Tuesday")
+  const currentDay = now.toLocaleDateString("en-US", { weekday: "long" });
+
+  // Returns current hour in 24-hour format (0 - 23)
+  const currentHour = now.getHours();
+
+  return getHourlyData(targetName, currentDay, currentHour);
+}

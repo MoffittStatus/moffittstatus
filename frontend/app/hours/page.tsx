@@ -2,6 +2,7 @@ import * as React from "react";
 import { getAllLibraryRatings } from '@/lib/firebaseMethods';
 import { getAllLibraryHours, getAvailableRooms } from '@/lib/libCal';
 import LibraryStatusPage from "../components/main/main";
+import { getSlugFromName } from "@/lib/libData";
 
 function hoursFix (input:string) { 
   if (input.includes('Starts')){
@@ -35,21 +36,7 @@ function fixData (text:string){
     snacks: text.includes("snack")
   }
 }
-function getSlugFromName(name: string): string {
-  const overrides: Record<string, string> = {
-    "Main (Gardner) Stacks": "main_stacks",
-    "Moffitt Library": "moffitt",
-    "Doe Library": "doe",
-    "Kresge Engineering Library": "kresge"
-  };
 
-  if (overrides[name]) return overrides[name];
-
-  return name
-    .toLowerCase()
-    .replace(/\s+/g, '_') // Replace spaces with underscores
-    .replace(/[^\w_]/g, ''); // Remove special chars
-}
 export default async function Page() {
   const loadLibraries = async () => {
     try {

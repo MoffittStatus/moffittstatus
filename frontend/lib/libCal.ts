@@ -81,6 +81,20 @@ export async function fetchRoomAvailability(dateStr:string,library:string) {
         pageSize: '100' // Bump this up to ensure you get all rooms
       });
       break
+    case "moffitt":
+      formData = new URLSearchParams({
+        lid: '8868',
+        gid: '0',
+        eid: '-1',
+        seat: '0',
+        seatId: '0',
+        zone: '0',
+        start: startParam,
+        end: endParam,
+        pageIndex: '0',
+        pageSize: '18'
+      });
+      break
   }
   if (!formData)
     return {}
@@ -113,6 +127,7 @@ export async function fetchRoomAvailability(dateStr:string,library:string) {
   }
 }
 const ROOM_NAMES={
+    // Stacks
     "62852": "Room B4 (Capacity 5)",
     "62853": "Room B5 (Capacity 5)",
     "62854": "Room B6 (Capacity 5)",
@@ -130,11 +145,29 @@ const ROOM_NAMES={
     "62866": "Room D 7 (Capacity 5)",
     "62867": "Room D14 (Capacity 5)",
     "62868": "Room D16 (Capacity 5)",
+    // Kresge
     "62870": "B1M20A (Capacity 10)",
     "62871": "B1M20B (Capacity 10)",
     "62872": "B1M20C (Capacity 10)",
     "62873": "B1M20E (Capacity 15)",
-    "62874": "B1M20F (Capacity 10)"
+    "62874": "B1M20F (Capacity 10)",
+    // Moffitt
+    "62878": "Egret, Room 409 (Capacity 4)",
+    "62879": "Goldeneye, Room 411 (Capacity 4)",
+    "62880": "Quail, Room 431 (Capacity 4)",
+    "62881": "Tern, Room 433 (Capacity 4)",
+    "62882": "Warbler, Room 435 (Capacity 4)",
+    "62884": "Room 415 (Capacity 8)",
+    "62885": "Room 417 (Capacity 8)",
+    "62886": "Hemlock, Room 503 (Capacity 4)",
+    "62887": "Ironwood, Room 505 (Capacity 4)",
+    "62888": "Juniper, Room 509 (Capacity 4)",
+    "62889": "Laurel, Room 511 (Capacity 4)",
+    "62890": "Mesquite, Room 513 (Capacity 4)",
+    "62891": "Palm, Room 517 (Capacity 4)",
+    "62892": "Redwood, Room 519 (Capacity 4)",
+    "62893": "Tamarack, Room 521 (Capacity 4)"
+  
   }
   export async function filterRoomsByTime(jsonData, targetDateObj) {
     const targetTime = targetDateObj.getTime();
@@ -169,7 +202,8 @@ const ROOM_NAMES={
       // if(slot.checksum)
       //   console.log(slot.checksum)
       // We want BOTH a time match AND the checkout class
-      return isTimeMatch && !hasCheckoutClass;
+      const isValidID = slot.itemId < 100000;
+      return isTimeMatch && !hasCheckoutClass && isValidID;
     });
   
     // Map to readable format
@@ -182,11 +216,11 @@ const ROOM_NAMES={
     }));
 }
     
-export async function getAvailableRooms(selected_hour:string, library:string) {
+export async function getAvailableRooms(selected_day:string|null, library:string) {
     // A. Fetch the data for the specific date you have (Nov 17, 2025)
-    const dateStr = new Date().toLocaleDateString('sv-SE', { 
+    const dateStr = selected_day!=null ? selected_day : new Date().toLocaleDateString('sv-SE', { 
       timeZone: 'America/Los_Angeles' 
-    });; 
+    }); 
     const jsonData = await fetchRoomAvailability(dateStr,library);
     // B. Create a Date object strictly for 2:00 PM on that day
     // Note: "14:00:00" is 2 PM in 24-hour time

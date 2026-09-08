@@ -60,6 +60,7 @@ import { BusynessPopup } from '../../components/busynessPopup';
 import { redirect, RedirectType } from 'next/navigation';
 import { useRouter } from 'next/navigation';
 import ScheduleChart from '../scheduleChart';
+import { getSlugFromName } from '@/lib/libData';
 const featureConfig = [
     { 
       key: "late", 
@@ -160,21 +161,7 @@ export default function LibraryStatusPage({data}) {
     return <span className="text-red-600">At Capacity</span>
   }
     }
-    function getSlugFromName(name: string): string {
-      const overrides: Record<string, string> = {
-        "Main (Gardner) Stacks": "main_stacks",
-        "Moffitt Library": "moffitt",
-        "Doe Library": "doe",
-        "Kresge Engineering Library": "kresge"
-      };
-    
-      if (overrides[name]) return overrides[name];
-    
-      return name
-        .toLowerCase()
-        .replace(/\s+/g, '_') // Replace spaces with underscores
-        .replace(/[^\w_]/g, ''); // Remove special chars
-    }
+
 
     const [pinnedIds, setPinnedIds] = useState([])
     const togglePin = (id) => {
@@ -309,9 +296,9 @@ export default function LibraryStatusPage({data}) {
                       </Button>
                 
                       {/* Bottom Left Badge: Available Rooms Overlay */}
-                      {lib.availableRooms && (
+                      {lib.isOpen && lib.roomsTotal > 0 && (
                         <div className="absolute bottom-3 left-3 z-10 px-3 py-1 bg-black/60 backdrop-blur-md rounded-lg text-white text-xs font-medium border border-white/10">
-                          {lib.availableRooms} rooms available
+                          {lib.roomsOpen} {lib.roomsOpen.length > 1 ? "rooms" : "room"} available
                         </div>
                       )}
                     </div>
@@ -361,13 +348,14 @@ export default function LibraryStatusPage({data}) {
                       </div>
                 
                       {/* Action Button */}
-                      {lib.availableRooms && (
+                      {lib.isOpen && lib.roomsOpen > 0 && (
                         <Button 
                           variant="ghost" 
                           className="w-full mt-2 py-2.5 rounded-2xl bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-600 font-semibold text-sm flex items-center justify-center gap-1 transition-colors"
                           onClick={(e) => {
                             e.stopPropagation();
                             // Navigation logic for room booking/details
+                            router.push('/rooms?lib=' + getSlugFromName(lib.name))
                           }}
                         >
                           View Rooms <ChevronRight className="h-4 w-4" />
