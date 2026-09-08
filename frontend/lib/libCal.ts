@@ -149,6 +149,7 @@ const ROOM_NAMES={
     "62870": "B1M20A (Capacity 10)",
     "62871": "B1M20B (Capacity 10)",
     "62872": "B1M20C (Capacity 10)",
+    "62883": "B1M20D Engineering Library Training Room (Capacity 35)",
     "62873": "B1M20E (Capacity 15)",
     "62874": "B1M20F (Capacity 10)",
     // Moffitt
