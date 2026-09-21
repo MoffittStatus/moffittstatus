@@ -1,6 +1,15 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
+import React, { 
+  createContext, 
+  useContext, 
+  useState, 
+  useEffect, 
+  useMemo, 
+  useCallback, 
+  useRef, 
+  useTransition 
+} from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getAvailableRooms } from '@/lib/libCal';
 import { Room, RawRoomSlot, GroupedRooms, LibrarySlug } from '@/types/booking';
@@ -16,6 +25,7 @@ interface BookingContextType {
   bookingRoom: Room | null;
   rawRoomData: RawRoomSlot[];
   loading: boolean;
+  isPending: boolean;
   groupedRooms: GroupedRooms;
   setSlug: (slug: LibrarySlug) => void;
   setSelectedDateKey: (dateKey: string) => void;
@@ -24,16 +34,19 @@ interface BookingContextType {
   setStartHour: (h: number) => void;
   setEndHour: (h: number) => void;
   setBookingRoom: (room: Room | null) => void;
-  fetchRooms: () => Promise<void>;
+  fetchRooms: (bypassCache?: boolean) => Promise<void>;
 }
 
 const BookingContext = createContext<BookingContextType | undefined>(undefined);
 
+// In-memory cache to prevent redundant fetches for previously visited dates/libraries
+const roomCache = new Map<string, RawRoomSlot[]>();
+
 export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isPending, startTransition] = useTransition();
 
-  // Read URL Search Params
   const rawSlug = searchParams.get('lib');
   const slug: LibrarySlug = (rawSlug && VALID_SLUGS.includes(rawSlug as LibrarySlug)) ? (rawSlug as LibrarySlug) : "all";
   
@@ -47,13 +60,18 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [rawRoomData, setRawRoomData] = useState<RawRoomSlot[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Helper to update URL params cleanly
+  // Ref to cancel active pending requests
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Non-blocking URL update helper
   const updateUrlParams = useCallback((newParams: Record<string, string | number>) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(newParams).forEach(([key, value]) => {
       params.set(key, String(value));
     });
-    router.replace(`?${params.toString()}`, { scroll: false });
+    startTransition(() => {
+      router.replace(`?${params.toString()}`, { scroll: false });
+    });
   }, [searchParams, router]);
 
   const setSlug = useCallback((newSlug: LibrarySlug) => {
@@ -83,7 +101,23 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   }, [rawSlug, router]);
 
-  const fetchRooms = useCallback(async () => {
+  const fetchRooms = useCallback(async (bypassCache = false) => {
+    // 1. Cancel previous pending fetch request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    const cacheKey = `${selectedDateKey}_${slug}`;
+
+    // 2. Return cached data immediately if available
+    if (!bypassCache && roomCache.has(cacheKey)) {
+      setRawRoomData(roomCache.get(cacheKey)!);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       let data: RawRoomSlot[] = [];
@@ -99,46 +133,70 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         const res = await getAvailableRooms(selectedDateKey, slug).catch(() => []);
         data = (res || []).map((r: RawRoomSlot) => ({ ...r, librarySlug: slug }));
       }
-      setRawRoomData(data || []);
-    } catch {
-      setRawRoomData([]);
+
+      if (!controller.signal.aborted) {
+        roomCache.set(cacheKey, data);
+        setRawRoomData(data || []);
+      }
+    } catch (err: unknown) {
+      if ((err as Error)?.name !== 'AbortError') {
+        setRawRoomData([]);
+      }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) {
+        setLoading(false);
+      }
     }
   }, [slug, selectedDateKey]);
 
   useEffect(() => {
     fetchRooms();
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
   }, [fetchRooms]);
 
-  // SINGLE-PASS DATA PROCESSING PIPELINE
+  // OPTIMIZED SINGLE-PASS ROOM GROUPING PIPELINE
   const groupedRooms = useMemo<GroupedRooms>(() => {
+    if (!rawRoomData || rawRoomData.length === 0) return {};
+
     const roomMap = new Map<string, Room>();
+    const roomMetaCache = new Map<string, { name: string; capacity: number }>();
     const parsedMinCap = minCapacity === 'Any' ? 0 : parseInt(minCapacity, 10);
 
     for (let i = 0; i < rawRoomData.length; i++) {
       const slot = rawRoomData[i];
+      if (!slot || !slot.time) continue;
 
-      const timeParts = slot.time ? slot.time.split(' - ') : [];
-      const startTime = timeParts[0] ? timeParts[0].split(' ')[1]?.slice(0, 5) : '';
+      const dashIdx = slot.time.indexOf(' - ');
+      const timeStr = dashIdx !== -1 ? slot.time.substring(0, dashIdx) : slot.time;
+      const spaceIdx = timeStr.lastIndexOf(' ');
+      const startTime = spaceIdx !== -1 ? timeStr.substring(spaceIdx + 1, spaceIdx + 6) : '';
       const slotStartHour = startTime ? parseInt(startTime.split(':')[0], 10) : 0;
 
       if (slotStartHour < startHour || slotStartHour >= endHour) continue;
 
-      let room = roomMap.get(slot.id);
-      if (!room) {
+      // Avoid re-running regex on every time slot for the same room
+      let meta = roomMetaCache.get(slot.id);
+      if (!meta) {
         const capMatch = slot.name.match(/\(Capacity\s*(\d+)\)/i);
         const capacity = capMatch ? parseInt(capMatch[1], 10) : 4;
-
-        if (capacity < parsedMinCap) continue;
-
         const cleanName = slot.name.replace(/\s*\([^)]*\)/g, '').trim();
-        const libSlug = slot.librarySlug || slug;
+        meta = { name: cleanName, capacity };
+        roomMetaCache.set(slot.id, meta);
+      }
 
+      if (meta.capacity < parsedMinCap) continue;
+
+      let room = roomMap.get(slot.id);
+      if (!room) {
+        const libSlug = slot.librarySlug || slug;
         room = {
           id: slot.id,
-          name: cleanName,
-          capacity,
+          name: meta.name,
+          capacity: meta.capacity,
           type: 'Study Space',
           librarySlug: libSlug,
           libraryName: SLUG_TO_NAME[libSlug] || "Library Space",
@@ -147,7 +205,10 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
         roomMap.set(slot.id, room);
       }
 
-      const endTime = timeParts[1] ? timeParts[1].split(' ')[1]?.slice(0, 5) : '';
+      const endTimeStr = dashIdx !== -1 ? slot.time.substring(dashIdx + 3) : '';
+      const endSpaceIdx = endTimeStr.lastIndexOf(' ');
+      const endTime = endSpaceIdx !== -1 ? endTimeStr.substring(endSpaceIdx + 1, endSpaceIdx + 6) : '';
+
       room.slots.push({
         time: startTime && endTime ? `${startTime} - ${endTime}` : slot.time,
         checksum: slot.checksum,
@@ -182,6 +243,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       bookingRoom,
       rawRoomData,
       loading,
+      isPending,
       groupedRooms,
       setSlug,
       setSelectedDateKey,
