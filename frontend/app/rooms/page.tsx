@@ -2,6 +2,8 @@ import React, { Suspense } from 'react';
 import { BookingProvider } from '@/context/BookingContext';
 import { BookingClientWrapper } from '@/components/booking/BookingClientWrapper';
 export const revalidate = 30;
+export const dynamic = 'force-dynamic';
+
 
 // Main Page Component - Server Component (no 'use client')
 export default function LibraryRoomBookingPage() {
