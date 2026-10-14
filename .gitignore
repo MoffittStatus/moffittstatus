@@ -3,3 +3,5 @@ backend/node_modules
 modeling/node_modules
 backend/venv
 backend/chatbot/__pycache__
+instagramPipeline_script/.env
+instagramPipeline_script/service_account.json
