@@ -1,6 +1,9 @@
 name: Daily Instagram Sheets Publisher
 
 on:
+  push:
+      branches:
+        - instagramPipeline
   schedule:
     # Runs automatically every day at 09:00 UTC (Adjust time as needed)
     - cron: '0 9 * * *'
