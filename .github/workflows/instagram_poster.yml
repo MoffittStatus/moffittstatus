@@ -49,6 +49,7 @@ jobs:
           IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: |
+          cd instagramPipeline_script
           python sheets_pipeline.py
 
       - name: Clean Up Service Account Credentials
