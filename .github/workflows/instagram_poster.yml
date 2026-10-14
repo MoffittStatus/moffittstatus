@@ -13,6 +13,9 @@ on:
 jobs:
   run-posting-pipeline:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./instagramPipeline_script
 
     steps:
       - name: Checkout Repository
@@ -39,7 +42,6 @@ jobs:
           IG_APP_SECRET: ${{ secrets.IG_APP_SECRET }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: |
-          cd instagramPipeline_script
           if [ -f refresh_token.py ]; then
             python refresh_token.py
           fi
@@ -49,7 +51,6 @@ jobs:
           IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
           IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
         run: |
-          cd instagramPipeline_script
           python sheets_pipeline.py
 
       - name: Clean Up Service Account Credentials
