@@ -33,8 +33,30 @@ jobs:
           pip install requests gspread google-auth python-dotenv
 
       - name: Recreate service_account.json from Secret
+        env:
+          GCP_SECRET: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
         run: |
-          echo "${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}" | base64 --decode > service_account.json
+          python -c "
+          import os, json, base64
+
+          secret = os.getenv('GCP_SECRET', '').strip()
+
+          # If the secret is base64 encoded, decode it
+          if not secret.startswith('{'):
+              try:
+                  secret = base64.b64decode(secret).decode('utf-8')
+              except Exception as e:
+                  print(f'Base64 decode failed: {e}')
+
+          # Validate that it parses as valid JSON
+          try:
+              data = json.loads(secret)
+              with open('service_account.json', 'w') as f:
+                  json.dump(data, f)
+              print('Successfully generated valid service_account.json')
+          except Exception as e:
+              raise ValueError(f'Failed to parse JSON secret: {e}')
+          "
 
       - name: Run Token Refresh Check
         env:
