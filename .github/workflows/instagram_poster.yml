@@ -34,7 +34,7 @@ jobs:
 
       - name: Recreate service_account.json from Secret
         run: |
-          echo "${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}" > service_account.json
+          echo "${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}" | base64 --decode > service_account.json
 
       - name: Run Token Refresh Check
         env:
