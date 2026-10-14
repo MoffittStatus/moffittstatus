@@ -1,10 +1,13 @@
 import os
+import re
 import time
 from datetime import datetime
 from dotenv import load_dotenv
 import gspread
 from google.oauth2.service_account import Credentials
 import requests
+import cloudinary
+import cloudinary.uploader
 
 load_dotenv()
 
@@ -14,6 +17,12 @@ ACCESS_TOKEN = os.getenv("IG_ACCESS_TOKEN")
 GRAPH_API_VERSION = "v21.0"
 BASE_URL = f"https://graph.facebook.com/{GRAPH_API_VERSION}"
 SPREADSHEET_NAME = "Instagram Content Queue"
+
+cloudinary.config(
+    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.getenv("CLOUDINARY_API_KEY"),
+    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
+)
 
 # Google Sheets Setup
 SCOPES = [
@@ -29,6 +38,41 @@ def get_sheet():
     client = gspread.authorize(creds)
     return client.open(SPREADSHEET_NAME).sheet1
 
+def convert_drive_url_to_direct_link(url: str) -> str:
+    """Extracts Google Drive File ID and turns it into a direct link."""
+    if not url or "drive.google.com" not in url:
+        return url.strip()
+
+    file_id_pattern = r"(?:/d/|id=)([a-zA-Z0-9_-]{25,})"
+    match = re.search(file_id_pattern, url)
+
+    if match:
+        file_id = match.group(1)
+        return f"https://lh3.googleusercontent.com/d/{file_id}"
+
+    return url.strip()
+
+
+def upload_to_cloudinary_and_get_url(source: str) -> str:
+    """Uploads Google Drive links, URLs, or local files to Cloudinary and returns
+
+    a clean direct Meta-compatible image URL.
+    """
+    if not source:
+        raise ValueError("Image source is empty.")
+
+    print(f"Uploading image source to Cloudinary: {source}")
+
+    upload_result = cloudinary.uploader.upload(
+        source, folder="instagram_automation", use_filename=True
+    )
+
+    secure_url = upload_result.get("secure_url")
+    if not secure_url:
+        raise Exception(f"Cloudinary upload failed: {upload_result}")
+
+    print(f"Cloudinary URL generated: {secure_url}")
+    return secure_url
 
 # --- Instagram API Functions ---
 def create_container(image_url: str, caption: str) -> str:
@@ -95,9 +139,15 @@ def process_scheduled_posts():
                 try:
                     # Update status to Processing
                     sheet.update_cell(idx, 4, "Processing")
-
+                    
+                    image_input = convert_drive_url_to_direct_link(
+                        image_url
+                    )
+                    direct_image_url = upload_to_cloudinary_and_get_url(
+                        image_input
+                    )
                     # Execute Instagram Pipeline
-                    container_id = create_container(image_url, caption)
+                    container_id = create_container(direct_image_url, caption)
                     check_status(container_id)
                     media_id = publish_post(container_id)
 
