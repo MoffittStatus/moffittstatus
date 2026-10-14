@@ -1,0 +1,83 @@
+name: Daily Instagram Sheets Publisher
+
+on:
+  push:
+      branches:
+        - instagramPipeline
+  schedule:
+    # Runs automatically every day at 09:00 UTC (Adjust time as needed)
+    - cron: '0 9 * * *'
+  # Allows you to manually trigger the script anytime from the GitHub Actions tab
+  workflow_dispatch:
+
+jobs:
+  run-posting-pipeline:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./instagramPipeline_script
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install requests gspread google-auth python-dotenv cloudinary
+
+      - name: Recreate service_account.json from Secret
+        env:
+          GCP_SECRET: ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: |
+          python -c "
+          import os, json, base64
+
+          secret = os.getenv('GCP_SECRET', '').strip()
+
+          # If the secret is base64 encoded, decode it
+          if not secret.startswith('{'):
+              try:
+                  secret = base64.b64decode(secret).decode('utf-8')
+              except Exception as e:
+                  print(f'Base64 decode failed: {e}')
+
+          # Validate that it parses as valid JSON
+          try:
+              data = json.loads(secret)
+              with open('service_account.json', 'w') as f:
+                  json.dump(data, f)
+              print('Successfully generated valid service_account.json')
+          except Exception as e:
+              raise ValueError(f'Failed to parse JSON secret: {e}')
+          "
+
+      - name: Run Token Refresh Check
+        env:
+          IG_APP_ID: ${{ secrets.IG_APP_ID }}
+          IG_APP_SECRET: ${{ secrets.IG_APP_SECRET }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+        run: |
+          if [ -f refresh_token.py ]; then
+            python refresh_token.py
+          fi
+
+      - name: Execute Daily Instagram Posting Script
+        env:
+          IG_ACCOUNT_ID: ${{ secrets.IG_ACCOUNT_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: |
+          python sheets_pipeline.py
+      - name: Clean Up Service Account Credentials
+        if: always()
+        run: |
+          rm -f service_account.json
