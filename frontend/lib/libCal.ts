@@ -51,53 +51,52 @@ export async function fetchRoomAvailability(dateStr:string,library:string) {
   const endParam = endDate.toISOString().split('T')[0];     // "2025-11-18"
 
   // 2. Prepare the Form Data
-  let formData
+  // lid = LibCal library ID, gid = space group ID (0 = all groups)
+  // IDs come from the location dropdown on https://berkeley.libcal.com/spaces
+  let lid: string | undefined, gid = '0', pageSize = '100' // Bump this up to ensure you get all rooms
   switch(library){
     case "main_stacks":
-      formData = new URLSearchParams({
-        lid: '8867',     // Library ID (Main Stacks?)   
-        gid: '16357',    // Group ID
-        eid: '-1',       // Entity ID (usually -1 for "all")
-        seat: '0',
-        seatId: '0',
-        zone: '0',
-        start: startParam, 
-        end: endParam,
-        pageIndex: '0',
-        pageSize: '100' // Bump this up to ensure you get all rooms
-      });
+      lid = '8867'; gid = '16357'
       break
     case "kresge":
-      formData = new URLSearchParams({
-        lid: '8863',     // Library ID (Main Stacks?)   
-        gid: '0',    // Group ID
-        eid: '-1',       // Entity ID (usually -1 for "all")
-        seat: '0',
-        seatId: '0',
-        zone: '0',
-        start: startParam, 
-        end: endParam,
-        pageIndex: '0',
-        pageSize: '100' // Bump this up to ensure you get all rooms
-      });
+      lid = '8863'; gid = '0'
       break
     case "moffitt":
-      formData = new URLSearchParams({
-        lid: '8868',
-        gid: '0',
-        eid: '-1',
-        seat: '0',
-        seatId: '0',
-        zone: '0',
-        start: startParam,
-        end: endParam,
-        pageIndex: '0',
-        pageSize: '18'
-      });
+      lid = '8868'; gid = '0'; pageSize = '18'
+      break
+    case "earth_sciences":
+      lid = '8862'; gid = '0'
+      break
+    case "east_asian":
+      lid = '8864'; gid = '0'
+      break
+    case "environmental_design":
+      lid = '8865'; gid = '0'
+      break
+    case "igs":
+      lid = '8866'; gid = '0'
+      break
+    case "business":
+      lid = '22244'; gid = '0'
+      break
+    case "social_research":
+      lid = '24641'; gid = '0'
       break
   }
-  if (!formData)
+  if (!lid)
     return {}
+  const formData = new URLSearchParams({
+    lid,
+    gid,
+    eid: '-1',       // Entity ID (usually -1 for "all")
+    seat: '0',
+    seatId: '0',
+    zone: '0',
+    start: startParam,
+    end: endParam,
+    pageIndex: '0',
+    pageSize
+  });
   try {
     // 3. Send POST request from the Next.js Server (Bypasses CORS)
     const response = await fetch('https://berkeley.libcal.com/spaces/availability/grid', {
@@ -105,11 +104,11 @@ export async function fetchRoomAvailability(dateStr:string,library:string) {
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
         'Origin': 'https://berkeley.libcal.com', 
-        'Referer': 'https://berkeley.libcal.com/spaces?lid=8867&gid=16357',
+        'Referer': `https://berkeley.libcal.com/spaces?lid=${lid}&gid=${gid}`,
         'X-Requested-With': 'XMLHttpRequest', 
         'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36'
       },
-      body: formData ? formData.toString() : "",
+      body: formData.toString(),
       cache: 'no-store' // Don't cache this, we want real-time data
     });
 
@@ -167,8 +166,23 @@ const ROOM_NAMES={
     "62890": "Mesquite, Room 513 (Capacity 4)",
     "62891": "Palm, Room 517 (Capacity 4)",
     "62892": "Redwood, Room 519 (Capacity 4)",
-    "62893": "Tamarack, Room 521 (Capacity 4)"
-  
+    "62893": "Tamarack, Room 521 (Capacity 4)",
+    // Earth Sciences & Map
+    "62877": "Seminar Room, 55A McCone (Capacity 20)",
+    // East Asian
+    "62895": "Numata Room, Room 241 (Capacity 10)",
+    "62896": "Room 377 (Capacity 4)",
+    // Environmental Design
+    "62869": "Room 210C Bauer Wurster Hall (Capacity 10)",
+    // Institute of Governmental Studies
+    "62876": "Matsui Center Study Room",
+    // Business
+    "196070": "S350A (Capacity 5)",
+    "196071": "S350B (Capacity 5)",
+    "196072": "S350C (Capacity 5)",
+    "196074": "S350D (Capacity 5)",
+    // Social Research
+    "231046": "227 Haviland Hall (Capacity 10)"
   }
   export async function filterRoomsByTime(jsonData, targetDateObj) {
     const targetTime = targetDateObj.getTime();
@@ -203,8 +217,10 @@ const ROOM_NAMES={
       // if(slot.checksum)
       //   console.log(slot.checksum)
       // We want BOTH a time match AND the checkout class
-      const isValidID = slot.itemId < 100000;
-      return isTimeMatch && !hasCheckoutClass && isValidID;
+      const isUnavailable = slot.className && slot.className.includes("s-lc-eq-r-unavailable");
+      // Only keep publicly bookable rooms (skips Moffitt seats and staff-only spaces in the grid)
+      const isValidID = `${slot.itemId}` in ROOM_NAMES;
+      return isTimeMatch && !hasCheckoutClass && !isUnavailable && isValidID;
     });
   
     // Map to readable format
