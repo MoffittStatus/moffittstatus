@@ -1,4 +1,14 @@
-export type LibrarySlug = "all" | "main_stacks" | "moffitt" | "kresge";
+export type LibrarySlug =
+  | "all"
+  | "main_stacks"
+  | "moffitt"
+  | "kresge"
+  | "earth_sciences"
+  | "east_asian"
+  | "environmental_design"
+  | "igs"
+  | "business"
+  | "social_research";
 
 export interface LibraryOption {
   slug: LibrarySlug;
