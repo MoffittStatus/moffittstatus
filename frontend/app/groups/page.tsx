@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { googleLoginUrl } from "@/lib/auth";
 import {
   Group,
   GroupInvite,
@@ -78,7 +77,7 @@ const GroupsPage: React.FC = () => {
 
       {signedOut ? (
         <p>
-          <a className="text-blue-600 underline" href={googleLoginUrl("/groups")}>
+          <a className="text-blue-600 underline" href="/login">
             Sign in
           </a>{" "}
           to create and join groups.

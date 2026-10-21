@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { googleLoginUrl } from "@/lib/auth";
 import { GroupInvite, acceptInvite, errorMessage, getInvite, isUnauthorized, rejectInvite } from "@/lib/groups";
 
 const InvitePage: React.FC = () => {
@@ -43,7 +42,7 @@ const InvitePage: React.FC = () => {
   if (signedOut) {
     body = (
       <p>
-        <a className="text-blue-600 underline" href={googleLoginUrl(`/groups/invite/${token}`)}>
+        <a className="text-blue-600 underline" href="/login">
           Sign in
         </a>{" "}
         with your berkeley.edu account to view this invite.
