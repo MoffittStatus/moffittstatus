@@ -10,59 +10,64 @@ generator client {
 
 datasource db {
   provider = "mysql"
-  url = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
 model User {
-  id    Int     @id @default(autoincrement())
-  email String  @unique @db.VarChar(255)
-  name  String? @db.VarChar(255)
-  ratings Rating[]  // a user can have many ratings
+  id      Int      @id @default(autoincrement())
+  email   String   @unique @db.VarChar(255)
+  name    String?  @db.VarChar(255)
+  ratings Rating[] // a user can have many ratings
+
+  groupsCreated    Group[]       @relation("GroupCreatedBy")
+  groupMemberships GroupMember[]
+  groupInvitesSent GroupInvite[] @relation("GroupInviteCreatedBy")
 }
 
 model Rating {
-  id Int @id @default(autoincrement())
-  libraryName String @db.VarChar(255)
-  rating Int // 0 to 100
+  id            Int      @id @default(autoincrement())
+  libraryName   String   @db.VarChar(255)
+  rating        Int // 0 to 100
   goodForGroups Boolean
-  isLoud Boolean
-  floor String @db.VarChar(255)
+  isLoud        Boolean
+  floor         String   @db.VarChar(255)
   latitude      Float?
   longitude     Float?
-  createdAt DateTime @default(now())
-  libraryId      Int?
-  library        Library? @relation(fields: [libraryId], references: [id])
-  user      User?  @relation(fields: [userId], references: [id])  // optional relation
-  userId    Int?   // nullable foreign key
+  createdAt     DateTime @default(now())
+  libraryId     Int?
+  library       Library? @relation(fields: [libraryId], references: [id])
+  user          User?    @relation(fields: [userId], references: [id]) // optional relation
+  userId        Int? // nullable foreign key
+
   @@index([libraryName, createdAt, libraryId]) //This index makes the 'where' clause instant for 'library'
 }
 
 model Library {
-  id              Int      @id @default(autoincrement())
-  name            String   @unique
-  googleUrl       String   @db.Text
-  
-  address        String?  @db.VarChar(255)
-  imageSrc       String?  @db.Text
-  studySpaceUrl  String?  @db.Text
-  services       String?  @db.Text
-  hasStudySpace  Boolean  @default(false)
-  
+  id        Int    @id @default(autoincrement())
+  name      String @unique
+  googleUrl String @db.Text
+
+  address       String? @db.VarChar(255)
+  imageSrc      String? @db.Text
+  studySpaceUrl String? @db.Text
+  services      String? @db.Text
+  hasStudySpace Boolean @default(false)
+
   currentBusyness Int      @default(0)
   isOpen          Boolean  @default(false)
   lastUpdated     DateTime @default(now())
 
-  weeklySchedule  Json? 
-  ratings         Rating[]
-  logs            TrafficLog[]
+  weeklySchedule Json?
+  ratings        Rating[]
+  logs           TrafficLog[]
 }
 
 model TrafficLog {
-  id          Int      @id @default(autoincrement())
-  libraryId   Int
-  library     Library  @relation(fields: [libraryId], references: [id])
-  busyness    Int
-  createdAt   DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  libraryId Int
+  library   Library  @relation(fields: [libraryId], references: [id])
+  busyness  Int
+  createdAt DateTime @default(now())
 
   @@index([libraryId, createdAt])
 }
@@ -90,4 +95,72 @@ model PageVisit {
   updatedAt   DateTime @updatedAt
 
   @@unique([page, bucketStart])
+}
+
+enum GroupType {
+  RSO
+  CASUAL
+}
+
+enum GroupRole {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  REVOKED
+}
+
+model Group {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  isPrivate   Boolean   @default(false) // private groups are invite-only
+  type        GroupType @default(CASUAL)
+  verified    Boolean   @default(false) // MoffitStatus admin decides, for RSO
+  createdById Int
+  createdBy   User      @relation("GroupCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  members GroupMember[]
+  invites GroupInvite[]
+
+  @@index([isPrivate])
+}
+
+model GroupMember {
+  id        Int       @id @default(autoincrement())
+  groupId   Int
+  group     Group     @relation(fields: [groupId], references: [id])
+  userId    Int
+  user      User      @relation(fields: [userId], references: [id])
+  role      GroupRole @default(MEMBER)
+  joinedAt  DateTime  @default(now())
+  removedAt DateTime? // rows are never deleted so past event attendance stays intact
+
+  @@unique([groupId, userId]) // rejoining reuses the same row
+  @@index([userId])
+}
+
+model GroupInvite {
+  id          Int          @id @default(autoincrement())
+  groupId     Int
+  group       Group        @relation(fields: [groupId], references: [id])
+  email       String       @db.VarChar(255)
+  role        GroupRole    @default(MEMBER) // ADMIN or MEMBER, never OWNER
+  token       String       @unique @db.VarChar(64) // sent in the email link
+  status      InviteStatus @default(PENDING)
+  createdById Int
+  createdBy   User         @relation("GroupInviteCreatedBy", fields: [createdById], references: [id])
+  createdAt   DateTime     @default(now())
+  expiresAt   DateTime
+  respondedAt DateTime?
+
+  @@index([groupId, status])
+  @@index([email, status])
 }
