@@ -2,6 +2,8 @@
 import { getCurrentHourlyData } from "./gMapCapacities"
 import { getAllLibraryHours, getAvailableRooms } from "./libCal"
 import { getSlugFromName } from "./libData"
+import { SINGLE_SLUGS } from "./booking-utils"
+import { LibrarySlug } from "@/types/booking"
 
 function hoursFix (input:string) { 
     if (input.includes('Starts')){
@@ -75,7 +77,7 @@ export const loadLibraries = async () => {
           // Room Logic
           rooms: roomData,
           roomsOpen: roomData.length > 0 ? roomData.length : -1,
-          roomsTotal: slug == "main_stacks" || slug == "moffitt" || slug == "kresge" ? 1 : 0,
+          roomsTotal: SINGLE_SLUGS.includes(slug as LibrarySlug) ? 1 : 0,
           
           crowdLevel: crowdLevel,
           // weeklySchedule:scheduleMap[lib.name] || [],
