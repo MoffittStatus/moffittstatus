@@ -19,6 +19,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://www.lib.berkeley.edu" />
+        <link rel="dns-prefetch" href="https://www.lib.berkeley.edu" />
+      </head>
       <body className={inter.className}>
         <Navbar></Navbar>
         <PageVisitTracker></PageVisitTracker>

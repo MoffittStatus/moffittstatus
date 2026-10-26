@@ -1,5 +1,4 @@
 import LibraryStatusPage from './components/main/main';
-export const revalidate = 30;
 export const dynamic = 'force-dynamic';
 
 // export const dynamic = 'force-dynamic'; // runs load libraries on every request

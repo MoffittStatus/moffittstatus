@@ -78,7 +78,7 @@ export const BookingModal = memo(() => {
                     onClick={() => setSelectedSlot(isSelected ? null : slot)}
                     className={`w-full py-2.5 px-3 rounded-xl border text-xs font-bold flex justify-between items-center cursor-pointer transition-all ${
                       isSelected 
-                        ? 'border-indigo-600 bg-indigo-50/80 text-indigo-900 ring-1 ring-indigo-600' 
+                        ? 'border-none bg-indigo-50/80 text-indigo-900' 
                         : 'border-slate-200 text-slate-700 bg-slate-50/50 hover:bg-slate-100/60'
                     }`}
                   >
@@ -88,11 +88,11 @@ export const BookingModal = memo(() => {
                       </div>
                       <span>{formatSlotRange12Hr(slot.time)}</span>
                     </div>
-                    {isSelected && (
+                    {/* {isSelected && (
                       <Badge className="bg-indigo-100 text-indigo-700 hover:bg-indigo-100 text-[10px] uppercase font-extrabold border-0">
                         Auto-Select
                       </Badge>
-                    )}
+                    )} */}
                   </Label>
                 </div>
               );

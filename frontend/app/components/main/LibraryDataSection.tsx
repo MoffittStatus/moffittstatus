@@ -1,5 +1,5 @@
 'use client';
-
+import Image from 'next/image';
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardTitle } from '@/components/ui/card';
@@ -96,7 +96,7 @@ export default function LibraryDataSection({ data }: { data: Library[] }) {
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8 border-none bg-transparent shadow-none">
-        {sortedLibraries.map((lib) => {
+        {sortedLibraries.map((lib,index) => {
           const isPinned = pinnedIds.includes(lib.id);
 
           return (
@@ -106,9 +106,11 @@ export default function LibraryDataSection({ data }: { data: Library[] }) {
             >
               {/* Top Image Section */}
               <div className="relative h-52 w-full overflow-hidden">
-                <img
-                  src={lib.image}
+                <Image
+                  src={lib.image!}
                   alt={`${lib.name} exterior`}
+                  fill
+                  priority={index < 6}
                   className="h-full w-full object-cover"
                 />
 
@@ -136,7 +138,7 @@ export default function LibraryDataSection({ data }: { data: Library[] }) {
                 {/* Bottom Left Badge: Available Rooms Overlay */}
                 {lib.isOpen && lib.roomsTotal > 0 && (
                   <div className="absolute bottom-3 left-3 z-10 px-3 py-1 bg-black/60 backdrop-blur-md rounded-lg text-white text-xs font-medium border border-white/10">
-                    {lib.roomsOpen < 0 ? 0 : lib.roomsOpen} {lib.roomsOpen > 1 || lib.roomsOpen < 1 ? 'rooms' : 'room'} available
+                    {lib.roomsOpen < 0 ? 0 : lib.roomsOpen} room {lib.roomsOpen > 1 || lib.roomsOpen < 1 ? 'slots' : 'slot'} available
                   </div>
                 )}
               </div>

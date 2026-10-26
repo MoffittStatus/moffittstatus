@@ -220,7 +220,7 @@ const ROOM_NAMES={
       const isUnavailable = slot.className && slot.className.includes("s-lc-eq-r-unavailable");
       // Only keep publicly bookable rooms (skips Moffitt seats and staff-only spaces in the grid)
       const isValidID = `${slot.itemId}` in ROOM_NAMES;
-      return isTimeMatch && !hasCheckoutClass && !isUnavailable && isValidID;
+      return isTimeMatch && !hasCheckoutClass && !isUnavailable && isValidID && (slot.itemId!=62883);
     });
   
     // Map to readable format

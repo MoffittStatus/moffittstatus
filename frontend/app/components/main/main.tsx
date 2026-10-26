@@ -1,65 +1,10 @@
-import Image from "next/image";
-import { format } from "date-fns";
 import {
-  Calendar as CalendarIcon,
   Search,
-  Filter,
-  Clock,
-  MapPin,
-  MapPinCheckInside,
-  Building,
-  Moon,
-  Coffee,
-  Mic,
-  HelpCircle,
-  Laptop,
-  Volume2,
-  BookOpenCheck, 
-  Armchair,
-  Pin,
-  Activity, 
-  ChevronRight
 } from "lucide-react";
-import {SubmitReport} from '../../components/submitRating'
-import { cn, getDynamicStyles } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
-import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import * as Separator from "@radix-ui/react-separator";
-import { Slider } from "@/components/ui/slider";
-import { getAllLibraryRatings } from '@/lib/firebaseMethods';
-import { getAllLibraryHours, getAvailableRooms } from '@/lib/libCal';
-import Details from '@/app/components/libraryDetails';
-import { LibrariesLoading } from '../../components/librariesLoading';
-import { StatusDot } from '../../components/statusDot';
-import { StatusBadge } from '../../components/statusBadge';
-import { BusynessPopup } from '../../components/busynessPopup';
-import { redirect, RedirectType } from 'next/navigation';
-import ScheduleChart from '../scheduleChart';
-import { featureConfig, getSlugFromName } from '@/lib/libData';
 import LibraryDataLoader from "./LibraryDataLoader";
 import SearchBar from "./SearchBar";
 import FilterButtons from "./FilterButtons";
 import { FilterProvider } from "@/context/FilterContext";
-
 
 export default function LibraryStatusPage() {
     return (

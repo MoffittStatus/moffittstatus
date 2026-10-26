@@ -7,6 +7,7 @@ const fs = require('fs');
 const path = require('path');
 const cron = require('node-cron');
 const { runBatchUpdate } = require('../backend/librarySchedulerUpdate');
+const compression = require('compression');
 
 const dev = process.env.NODE_ENV !== 'production';
 const app = next({ dev });
@@ -17,10 +18,11 @@ console.log("Starting MoffittStatus Server...");
 app.prepare().then(() => {
   
   const expressApp = express();
+  expressApp.use(compression());
 
-  expressApp.use(cors({
-    origin: ['http://localhost:3003', 'https://moffittstatus.asuc.org']
-  }));
+  // expressApp.use(cors({
+  //   origin: ['http://localhost:3003', 'https://moffittstatus.asuc.org']
+  // }));
   expressApp.use(express.json());
   // every 15 minutes
 //  cron.schedule('*/15 * * * *', () => {
@@ -33,7 +35,9 @@ app.prepare().then(() => {
   // General Backend API routes
   try {
     const apiRoutes = require('../backend/routes');
-    expressApp.use('/api', apiRoutes);
+    expressApp.use('/api', cors({
+      origin: ['http://localhost:3003', 'https://moffittstatus.asuc.org']
+    }), apiRoutes);
   } catch (e) {
     console.log('Backend routes error:', e.message);
     expressApp.use('/api', (req, res) => res.status(404).json({error: 'API not ready'}));
