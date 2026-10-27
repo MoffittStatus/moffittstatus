@@ -114,7 +114,7 @@ export const loadLibraries = async () => {
   
       const processedData = await Promise.all(libraryPromises);
       
-      console.log("Processed Library Data:", processedData);
+      //console.log("Processed Library Data:", processedData);
       return processedData;
   
     } catch (error) {

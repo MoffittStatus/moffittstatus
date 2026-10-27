@@ -10,7 +10,7 @@ import React, {
   useRef, 
   useTransition 
 } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { getAvailableRooms } from '@/lib/libCal';
 import { Room, RawRoomSlot, GroupedRooms, LibrarySlug } from '@/types/booking';
 import { VALID_SLUGS, SINGLE_SLUGS, SLUG_TO_NAME, formatDateKey } from '@/lib/booking-utils';
@@ -64,15 +64,17 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Non-blocking URL update helper
+  const pathname = usePathname();
+
   const updateUrlParams = useCallback((newParams: Record<string, string | number>) => {
     const params = new URLSearchParams(searchParams.toString());
     Object.entries(newParams).forEach(([key, value]) => {
       params.set(key, String(value));
     });
     startTransition(() => {
-      router.replace(`?${params.toString()}`, { scroll: false });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     });
-  }, [searchParams, router]);
+  }, [searchParams, router, pathname]);
 
   const setSlug = useCallback((newSlug: LibrarySlug) => {
     updateUrlParams({ lib: newSlug });
@@ -96,7 +98,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [updateUrlParams]);
 
   useEffect(() => {
-    if (rawSlug && !VALID_SLUGS.includes(rawSlug as LibrarySlug)) {
+    if (rawSlug && rawSlug !== 'all' && !VALID_SLUGS.includes(rawSlug as LibrarySlug)) {
       router.push('/rooms?lib=all');
     }
   }, [rawSlug, router]);
