@@ -4,6 +4,7 @@ const libraryRoutes = require('./library');
 const libcalRoutes = require('./libcal');
 const oskichatRoutes = require('./OskiChat');
 const analyticsRoutes = require('./analytics');
+const groupRoutes = require('./groups');
 
 
 // Mount the library routes
@@ -12,6 +13,7 @@ router.use('/library', libraryRoutes);
 router.use('/libcal', libcalRoutes);
 router.use('/oskichat', oskichatRoutes);
 router.use('/analytics', analyticsRoutes);
+router.use('/groups', groupRoutes);
 
 
 module.exports = router;
