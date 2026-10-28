@@ -11,7 +11,7 @@ import React, {
   useTransition 
 } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { getAvailableRooms } from '@/lib/libCal';
+// import { getAvailableRooms } from '@/lib/libCal';
 import { Room, RawRoomSlot, GroupedRooms, LibrarySlug } from '@/types/booking';
 import { VALID_SLUGS, SINGLE_SLUGS, SLUG_TO_NAME, formatDateKey } from '@/lib/booking-utils';
 
@@ -122,26 +122,24 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setLoading(true);
     try {
-      let data: RawRoomSlot[] = [];
-      if (slug === "all") {
-        const results = await Promise.all(
-          SINGLE_SLUGS.map(async (s) => {
-            const res = await getAvailableRooms(selectedDateKey, s).catch(() => []);
-            return (res || []).map((r: RawRoomSlot) => ({ ...r, librarySlug: s }));
-          })
-        );
-        data = results.flat();
-      } else {
-        const res = await getAvailableRooms(selectedDateKey, slug).catch(() => []);
-        data = (res || []).map((r: RawRoomSlot) => ({ ...r, librarySlug: slug }));
+      const response = await fetch(
+        `/api/rooms?date=${encodeURIComponent(selectedDateKey)}&slug=${encodeURIComponent(slug)}`,
+        { signal: controller.signal }
+      );
+    
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-
+    
+      const data: RawRoomSlot[] = await response.json();
+    
       if (!controller.signal.aborted) {
         roomCache.set(cacheKey, data);
         setRawRoomData(data || []);
       }
     } catch (err: unknown) {
       if ((err as Error)?.name !== 'AbortError') {
+        console.error('Failed to fetch rooms:', err);
         setRawRoomData([]);
       }
     } finally {
