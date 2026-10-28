@@ -172,6 +172,7 @@ if (!result.success) {
 }
 
 async function runBatchUpdate() {
+  return;
   console.log("STARTING BATCH UPDATE");
   const res = await getAllLibraryHours()
   if (res) {

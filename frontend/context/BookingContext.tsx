@@ -14,6 +14,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 // import { getAvailableRooms } from '@/lib/libCal';
 import { Room, RawRoomSlot, GroupedRooms, LibrarySlug } from '@/types/booking';
 import { VALID_SLUGS, SINGLE_SLUGS, SLUG_TO_NAME, formatDateKey } from '@/lib/booking-utils';
+import { BACKEND_URL } from '@/lib/apiEndPoints';
 
 interface BookingContextType {
   slug: LibrarySlug;
@@ -123,7 +124,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setLoading(true);
     try {
       const response = await fetch(
-        `/api/rooms?date=${encodeURIComponent(selectedDateKey)}&slug=${encodeURIComponent(slug)}`,
+        `${BACKEND_URL}/api/rooms?date=${encodeURIComponent(selectedDateKey)}&slug=${encodeURIComponent(slug)}`,
         { signal: controller.signal }
       );
     
