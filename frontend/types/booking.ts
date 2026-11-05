@@ -8,7 +8,9 @@ export type LibrarySlug =
   | "environmental_design"
   | "igs"
   | "business"
-  | "social_research";
+  | "social_research"
+  | "cory"
+  | "soda";
 
 export interface LibraryOption {
   slug: LibrarySlug;

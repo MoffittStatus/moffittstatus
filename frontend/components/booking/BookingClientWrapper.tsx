@@ -9,6 +9,7 @@ import { LocationSelect } from './LocationSelect';
 import { DateCarousel } from './DateCarousel';
 import { FiltersBar } from './FiltersBar';
 import { RoomGrid } from './RoomGrid';
+import { GcalAccountBar } from './GcalAccess';
 import { BookingModal } from './BookingModal';
 
 export const BookingClientWrapper: React.FC = () => {
@@ -44,6 +45,7 @@ export const BookingClientWrapper: React.FC = () => {
         <LocationSelect />
         <DateCarousel />
         <FiltersBar />
+        <GcalAccountBar />
         <RoomGrid />
       </div>
 

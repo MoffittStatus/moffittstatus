@@ -13,10 +13,19 @@ import React, {
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 // import { getAvailableRooms } from '@/lib/libCal';
 import { Room, RawRoomSlot, GroupedRooms, LibrarySlug } from '@/types/booking';
-import { VALID_SLUGS, SINGLE_SLUGS, SLUG_TO_NAME, formatDateKey } from '@/lib/booking-utils';
+import { VALID_SLUGS, SINGLE_SLUGS, SLUG_TO_NAME, formatDateKey, isGcalSlug } from '@/lib/booking-utils';
+import { GcalError, getGcalAvailability } from '@/lib/gcal';
 import { BACKEND_URL } from '@/lib/apiEndPoints';
 
+// Google sign-in state for the rooms booked through Google Calendar
+export type GcalAccess =
+  | { status: 'unknown' }
+  | { status: 'signedOut' }
+  | { status: 'signedIn'; email: string }
+  | { status: 'error'; message: string };
+
 interface BookingContextType {
+  gcalAccess: GcalAccess;
   slug: LibrarySlug;
   selectedDateKey: string;
   weekOffset: number;
@@ -60,6 +69,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [bookingRoom, setBookingRoom] = useState<Room | null>(null);
   const [rawRoomData, setRawRoomData] = useState<RawRoomSlot[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
+  const [gcalAccess, setGcalAccess] = useState<GcalAccess>({ status: 'unknown' });
 
   // Ref to cancel active pending requests
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -123,6 +133,16 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     setLoading(true);
     try {
+      if (isGcalSlug(slug)) {
+        const { email, slots } = await getGcalAvailability(slug, selectedDateKey, controller.signal);
+        if (!controller.signal.aborted) {
+          setGcalAccess({ status: 'signedIn', email });
+          roomCache.set(cacheKey, slots);
+          setRawRoomData(slots);
+        }
+        return;
+      }
+
       const response = await fetch(
         `${BACKEND_URL}/api/rooms?date=${encodeURIComponent(selectedDateKey)}&slug=${encodeURIComponent(slug)}`,
         { signal: controller.signal }
@@ -140,8 +160,15 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       }
     } catch (err: unknown) {
       if ((err as Error)?.name !== 'AbortError') {
-        console.error('Failed to fetch rooms:', err);
         setRawRoomData([]);
+        if (err instanceof GcalError && err.status === 401) {
+          setGcalAccess({ status: 'signedOut' });
+        } else {
+          console.error('Failed to fetch rooms:', err);
+          if (err instanceof GcalError) {
+            setGcalAccess({ status: 'error', message: err.message });
+          }
+        }
       }
     } finally {
       if (!controller.signal.aborted) {
@@ -198,7 +225,7 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
           id: slot.id,
           name: meta.name,
           capacity: meta.capacity,
-          type: 'Study Space',
+          type: isGcalSlug(libSlug) ? 'EECS Room' : 'Study Space',
           librarySlug: libSlug,
           libraryName: SLUG_TO_NAME[libSlug] || "Library Space",
           slots: []
@@ -253,7 +280,8 @@ export const BookingProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setStartHour,
       setEndHour,
       setBookingRoom,
-      fetchRooms
+      fetchRooms,
+      gcalAccess
     }}>
       {children}
     </BookingContext.Provider>

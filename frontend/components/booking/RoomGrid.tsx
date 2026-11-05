@@ -5,14 +5,28 @@ import { Filter } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { useBooking } from '@/context/BookingContext';
 import { RoomCard } from './RoomCard';
+import { GcalSignInCard } from './GcalAccess';
+import { isGcalSlug } from '@/lib/booking-utils';
 
 export const RoomGrid = memo(() => {
-  const { loading, groupedRooms, slug } = useBooking();
+  const { loading, groupedRooms, slug, gcalAccess } = useBooking();
 
   if (loading) {
     return (
       <div className="py-16 text-center text-slate-400 bg-white rounded-3xl border border-slate-100">
         <p className="font-semibold text-sm animate-pulse">Loading study spaces...</p>
+      </div>
+    );
+  }
+
+  if (isGcalSlug(slug) && gcalAccess.status === 'signedOut') {
+    return <GcalSignInCard />;
+  }
+
+  if (isGcalSlug(slug) && gcalAccess.status === 'error') {
+    return (
+      <div className="py-16 text-center text-slate-500 bg-white rounded-3xl border border-slate-100">
+        <p className="font-semibold text-sm">{gcalAccess.message}</p>
       </div>
     );
   }

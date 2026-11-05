@@ -11,7 +11,11 @@ export const SINGLE_SLUGS: LibrarySlug[] = [
   "business",
   "social_research",
 ];
-export const VALID_SLUGS: LibrarySlug[] = ["all", ...SINGLE_SLUGS];
+// Booked through Google Calendar instead of LibCal, and only visible after signing in
+export const GCAL_SLUGS: LibrarySlug[] = ["cory", "soda"];
+export const VALID_SLUGS: LibrarySlug[] = ["all", ...SINGLE_SLUGS, ...GCAL_SLUGS];
+
+export const isGcalSlug = (slug: string): boolean => GCAL_SLUGS.includes(slug as LibrarySlug);
 
 export const LIBRARIES: LibraryOption[] = [
   { slug: "all", name: "All Libraries" },
@@ -24,6 +28,8 @@ export const LIBRARIES: LibraryOption[] = [
   { slug: "environmental_design", name: "Environmental Design Library" },
   { slug: "igs", name: "Institute of Governmental Studies Library" },
   { slug: "social_research", name: "Social Research Library" },
+  { slug: "cory", name: "Cory Hall (EECS)" },
+  { slug: "soda", name: "Soda Hall (EECS)" },
 ];
 
 export const SLUG_TO_NAME: Record<string, string> = LIBRARIES.reduce((acc, lib) => {

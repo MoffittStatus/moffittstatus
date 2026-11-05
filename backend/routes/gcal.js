@@ -1,7 +1,7 @@
+const crypto = require('crypto');
 const express = require('express');
+const session = require('express-session');
 const { google } = require('googleapis');
-const fs = require('fs');
-const path = require('path');
 
 const router = express.Router();
 
@@ -43,141 +43,254 @@ const ROOMS = [
 { id: 'berkeley.edu_3832313633313436353937@resource.calendar.google.com', summary: '732 Soda', building: 'soda', capacity: 3 },
 ];
 
-// Load Google OAuth credentials
-const keys = {
-  client_id: process.env.GOOGLE_CLIENT_ID,
-  client_secret: process.env.GOOGLE_CLIENT_SECRET,
-  redirect_uris: [process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8000/api/gcal/oauth2callback'],
-};
+const TIME_ZONE = 'America/Los_Angeles';
+const ALLOWED_DOMAIN = 'berkeley.edu';
+const SESSION_COOKIE = 'ms_gcal_session';
 
-try {
-  const fileData = fs.readFileSync(CLIENT_SECRETS_FILE, 'utf8');
-  keys = JSON.parse(fileData).web || JSON.parse(fileData).installed;
-} catch (error) {
-  console.warn('Could not load client_secret.json. OAuth will not work.', error.message);
-}
+// Bookable window, split into one-hour slots
+const DAY_START_HOUR = 8;
+const DAY_END_HOUR = 22;
+
+// Google access tokens last an hour and we don't request refresh tokens, so the session ends with them
+const SESSION_MAX_AGE_MS = 55 * 60 * 1000;
+
+const FIELD_LIMITS = { title: 200, description: 2000, affiliation: 200, speakers: 1000 };
+
+const isConfigured = () => Boolean(
+  process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.SESSION_SECRET
+);
 
 function getOAuth2Client() {
-  return new google.auth.OAuth2(keys.client_id, keys.client_secret, keys.redirect_uris[0]);
+  return new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8000/api/gcal/oauth2callback'
+  );
 }
 
 function getAuthenticatedClient(req) {
-  if (!req.session || !req.session.tokens) return null;
+  if (!req.session.tokens) return null;
   const oauth2Client = getOAuth2Client();
   oauth2Client.setCredentials(req.session.tokens);
   return oauth2Client;
 }
 
-// Get available rooms for a building
-async function searchAvailableRooms(auth, building, startStr, endStr) {
-  try {
-    console.log(`Fetching room calendars for building: ${building}...`);
+// How far ahead of UTC Los Angeles is at the given instant, in ms (changes with daylight saving)
+function timeZoneOffsetMs(instant) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TIME_ZONE,
+    hourCycle: 'h23',
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: 'numeric',
+    second: 'numeric',
+  }).formatToParts(instant);
+  const get = (type) => Number(parts.find((p) => p.type === type).value);
+  const asUtc = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
+  return asUtc - Math.floor(instant.getTime() / 1000) * 1000;
+}
 
-    // Filter from hardcoded list, skipping rooms without a resource email yet
-    const rooms = ROOMS.filter(
-      (r) => r.building === building.toLowerCase() && r.id !== null
-    );
+// Convert a Los Angeles wall-clock date and hour to the actual instant
+function campusTime(date, hour) {
+  const guess = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00Z`);
+  const firstPass = new Date(guess.getTime() - timeZoneOffsetMs(guess));
+  return new Date(guess.getTime() - timeZoneOffsetMs(firstPass));
+}
 
-    console.log(`Found ${rooms.length} configured rooms matching building.`);
+function isValidDate(date) {
+  if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const parsed = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(date);
+}
 
-    if (!rooms.length || !startStr || !endStr) {
-      return rooms;
-    }
+const pad = (hour) => String(hour).padStart(2, '0');
+const overlaps = (busy, start, end) => new Date(busy.start) < end && new Date(busy.end) > start;
 
-    console.log(`Checking freebusy status from ${startStr} to ${endStr}...`);
-    const calendar = google.calendar({ version: 'v3', auth });
+// The UI strips parentheses from room names, so keep labels like "Hogan Room" outside of them
+const displayName = (room) => `${room.summary.replace(/\s*\((.*?)\)/, ' - $1')} (Capacity ${room.capacity})`;
 
-    const freebusyBody = {
-      timeMin: startStr,
-      timeMax: endStr,
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+// Read busy times, leaving out any room Google wouldn't let this account see
+async function queryBusy(auth, rooms, timeMin, timeMax) {
+  const calendar = google.calendar({ version: 'v3', auth });
+  const fb = await calendar.freebusy.query({
+    requestBody: {
+      timeMin: timeMin.toISOString(),
+      timeMax: timeMax.toISOString(),
+      timeZone: TIME_ZONE,
       items: rooms.map((r) => ({ id: r.id })),
-    };
+    },
+  });
 
-    const fb = await calendar.freebusy.query({ requestBody: freebusyBody });
-    const calendars = fb.data.calendars || {};
+  const busyByRoom = new Map();
+  for (const room of rooms) {
+    const result = fb.data.calendars?.[room.id];
+    if (result && !result.errors?.length) busyByRoom.set(room.id, result.busy || []);
+  }
+  return busyByRoom;
+}
 
-    return rooms.map((room) => {
-      const busy = calendars[room.id]?.busy || [];
-      return {
+// Free one-hour slots per room, in the same shape the LibCal rooms use so the booking UI can share them
+async function getAvailableSlots(auth, building, date) {
+  const rooms = ROOMS.filter((r) => r.building === building);
+  const busyByRoom = await queryBusy(auth, rooms, campusTime(date, DAY_START_HOUR), campusTime(date, DAY_END_HOUR));
+  if (busyByRoom.size === 0) {
+    throw httpError(403, 'Could not read any room calendars with this account');
+  }
+
+  const now = new Date();
+  const slots = [];
+  for (const room of rooms) {
+    const busy = busyByRoom.get(room.id);
+    if (!busy) continue;
+
+    for (let hour = DAY_START_HOUR; hour < DAY_END_HOUR; hour++) {
+      const start = campusTime(date, hour);
+      const end = campusTime(date, hour + 1);
+      if (start <= now || busy.some((b) => overlaps(b, start, end))) continue;
+
+      slots.push({
         id: room.id,
-        summary: room.summary,
-        capacity: room.capacity,
-        available: busy.length === 0,
-        busy_slots: busy,
-      };
-    });
-  } catch (error) {
-    console.error('searchAvailableRooms error:', error.message);
-    throw error;
+        name: displayName(room),
+        time: `${date} ${pad(hour)}:00:00 - ${date} ${pad(hour + 1)}:00:00`,
+        checksum: '',
+        librarySlug: building,
+      });
+    }
   }
+  return slots;
 }
 
-// Create Google Calendar Booking
-async function createCalendarBooking(auth, bookingData) {
-  try {
-    console.log(`Creating event for room ${bookingData.roomId}...`);
-    const calendar = google.calendar({ version: 'v3', auth });
+// Returns an error message, or null if the booking request is well formed
+function validateBooking(body, room) {
+  if (!room) return 'Unknown room';
+  if (!isValidDate(body.date)) return 'Invalid date';
 
-    if (!bookingData.title || !bookingData.description) {
-      throw new Error('Event title and description are required');
-    }
+  const match = /^(\d{2}):00$/.exec(body.startTime || '');
+  const hour = match ? Number(match[1]) : NaN;
+  if (!(hour >= DAY_START_HOUR && hour < DAY_END_HOUR)) return 'Invalid start time';
+  if (campusTime(body.date, hour) <= new Date()) return 'That time has already passed';
 
-    const description =
-      `Event description: ${bookingData.description}\n` +
-      `EECS Affiliation: ${bookingData.affiliation || ''}\n` +
-      `Number of participants: ${bookingData.participants || ''}\n` +
-      `Speaker list and affiliation: ${bookingData.speakers || 'N/A'}`;
-    const start = new Date(bookingData.startTime).toISOString();
-    const end = new Date(bookingData.endTime).toISOString();
-
-    const event = {
-      summary: bookingData.title,
-      description: description,
-      start: { dateTime: start, timeZone: 'America/Los_Angeles' },
-      end: { dateTime: end, timeZone: 'America/Los_Angeles' },
-      attendees: [{ email: bookingData.roomId }],
-    };
-
-    const created = await calendar.events.insert({
-      calendarId: 'primary',
-      requestBody: event,
-      sendUpdates: 'none', // don't notify guests until booking is confirmed by room scheduler
-    });
-
-    if (created.status < 200 || created.status >= 300) {
-      throw new Error(`Google API returned ${created.status}`);
-    }
-
-    return {
-      eventId: created.data.id,
-      htmlLink: created.data.htmlLink,
-      // 'tentative' means pending room scheduler approval — not yet confirmed
-      status: created.data.status,
-    };
-  } catch (error) {
-    console.error('createCalendarBooking error:', error.message);
-    throw error;
+  for (const field of ['title', 'description', 'affiliation']) {
+    if (typeof body[field] !== 'string' || !body[field].trim()) return `Missing ${field}`;
   }
+  for (const [field, limit] of Object.entries(FIELD_LIMITS)) {
+    if (body[field] !== undefined && (typeof body[field] !== 'string' || body[field].length > limit)) {
+      return `${field} must be text of at most ${limit} characters`;
+    }
+  }
+
+  const participants = Number(body.participants);
+  if (!Number.isInteger(participants) || participants < 1) return 'Number of participants is required';
+  if (participants > room.capacity) return `This room only holds ${room.capacity} people`;
+  return null;
 }
+
+// Create the event on the user's calendar and invite the room
+async function createCalendarBooking(auth, room, body) {
+  const hour = Number(body.startTime.slice(0, 2));
+  const start = campusTime(body.date, hour);
+  const end = campusTime(body.date, hour + 1);
+
+  const busyByRoom = await queryBusy(auth, [room], start, end);
+  const busy = busyByRoom.get(room.id);
+  if (!busy) {
+    throw httpError(403, "Could not read this room's calendar with your account");
+  }
+  if (busy.some((b) => overlaps(b, start, end))) {
+    throw httpError(409, 'That slot was just taken. Please pick another time.');
+  }
+
+  const description =
+    `Event description: ${body.description}\n` +
+    `EECS Affiliation: ${body.affiliation}\n` +
+    `Number of participants: ${body.participants}\n` +
+    `Speaker list and affiliation: ${body.speakers || 'N/A'}`;
+
+  const calendar = google.calendar({ version: 'v3', auth });
+  const created = await calendar.events.insert({
+    calendarId: 'primary',
+    sendUpdates: 'none', // don't notify guests until booking is confirmed by room scheduler
+    requestBody: {
+      summary: body.title,
+      description,
+      location: room.summary,
+      start: { dateTime: start.toISOString(), timeZone: TIME_ZONE },
+      end: { dateTime: end.toISOString(), timeZone: TIME_ZONE },
+      attendees: [{ email: room.id, resource: true }],
+    },
+  });
+
+  const roomAttendee = (created.data.attendees || []).find((a) => a.email === room.id);
+  return {
+    eventId: created.data.id,
+    htmlLink: created.data.htmlLink,
+    status: created.data.status,
+    // Stays 'needsAction' until the room accepts, so the event isn't a confirmed reservation yet
+    roomResponse: roomAttendee?.responseStatus || 'needsAction',
+  };
+}
+
+// Maps failures from Google to a response, ending the session if the sign-in is no longer valid
+function sendGoogleError(req, res, error, label) {
+  console.error(`${label} error:`, error.message);
+  const status = Number(error.status || error.code || error.response?.status);
+  if (status === 401) {
+    return req.session.destroy(() => {
+      res.status(401).json({ error: 'Your Google sign-in expired. Please sign in again.' });
+    });
+  }
+  if (status === 403 || status === 409) {
+    return res.status(status).json({ error: error.message });
+  }
+  return res.status(502).json({ error: 'Google Calendar request failed. Please try again.' });
+}
+
+// Only send people back to the room booking page after signing in
+const safeReturnTo = (value) => (/^\/rooms(\?[^\s\\]*)?$/.test(value || '') ? value : '/rooms');
+const frontendUrl = (path) => `${process.env.FRONTEND_URL || ''}${path}`;
+const withError = (path, code) => `${path}${path.includes('?') ? '&' : '?'}gcal_error=${code}`;
 
 // GET /api/gcal/health
 router.get('/health', (req, res) => {
-  res.json({ status: 'ok', message: 'GCal API is running' });
+  res.json({ status: 'ok', message: 'GCal API is running', configured: isConfigured() });
 });
+
+// Everything below needs Google credentials and a session
+router.use(isConfigured()
+  ? session({
+    name: SESSION_COOKIE,
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    proxy: true, // deployed behind nginx
+    cookie: { httpOnly: true, sameSite: 'lax', secure: 'auto', maxAge: SESSION_MAX_AGE_MS },
+  })
+  : (req, res) => res.status(503).json({ error: 'Google Calendar booking is not set up on this server.' }));
 
 // GET /api/gcal/login - Initiate OAuth flow
 router.get('/login', (req, res) => {
-  const oauth2Client = getOAuth2Client();
-  const scopes = [
-    'https://www.googleapis.com/auth/calendar',
-    'https://www.googleapis.com/auth/calendar.events',
-    'https://www.googleapis.com/auth/calendar.readonly'
-  ];
+  const state = crypto.randomBytes(24).toString('hex');
+  req.session.oauthState = state;
+  req.session.returnTo = safeReturnTo(req.query.returnTo);
 
-  const authorizationUrl = oauth2Client.generateAuthUrl({
-    access_type: 'offline',
-    scope: scopes,
-    include_granted_scopes: true,
+  const authorizationUrl = getOAuth2Client().generateAuthUrl({
+    access_type: 'online',
+    scope: [
+      'openid',
+      'email',
+      'https://www.googleapis.com/auth/calendar.freebusy',
+      'https://www.googleapis.com/auth/calendar.events',
+    ],
+    hd: ALLOWED_DOMAIN,
+    state,
   });
 
   res.redirect(authorizationUrl);
@@ -185,65 +298,86 @@ router.get('/login', (req, res) => {
 
 // GET /api/gcal/oauth2callback - Handle OAuth callback
 router.get('/oauth2callback', async (req, res) => {
-  const { code } = req.query;
+  const { code, state, error } = req.query;
+  const returnTo = safeReturnTo(req.session.returnTo);
+  const expectedState = req.session.oauthState;
+  delete req.session.oauthState;
+  delete req.session.returnTo;
 
-  if (!code) {
-    return res.status(400).json({ error: 'Authorization code not provided' });
+  if (!expectedState || state !== expectedState) {
+    return res.redirect(frontendUrl(withError(returnTo, 'state')));
+  }
+  if (error || !code) {
+    return res.redirect(frontendUrl(withError(returnTo, 'denied')));
   }
 
   try {
     const oauth2Client = getOAuth2Client();
     const { tokens } = await oauth2Client.getToken(code);
-    oauth2Client.setCredentials(tokens);
 
-    // Store tokens in session
-    req.session.tokens = tokens;
+    // The hd parameter on the login URL is only a hint, so check the signed token
+    const ticket = await oauth2Client.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+    const payload = ticket.getPayload();
+    if (payload.hd !== ALLOWED_DOMAIN || !payload.email_verified) {
+      return res.redirect(frontendUrl(withError(returnTo, 'domain')));
+    }
 
-    console.log('OAuth successful, tokens stored in session');
-
-    // Redirect back to frontend
-    res.redirect(`${process.env.FRONTEND_URL}/rooms`);
-  } catch (error) {
-    console.error('OAuth callback error:', error);
-    res.status(500).json({ error: 'Authentication failed' });
+    await new Promise((resolve, reject) => {
+      req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+    req.session.tokens = { access_token: tokens.access_token, expiry_date: tokens.expiry_date };
+    req.session.email = payload.email;
+    res.redirect(frontendUrl(returnTo));
+  } catch (err) {
+    console.error('OAuth callback error:', err.message);
+    res.redirect(frontendUrl(withError(returnTo, 'failed')));
   }
 });
 
-// GET /api/gcal/logout - Clear session
-router.get('/logout', (req, res) => {
+// POST /api/gcal/logout - Clear session
+router.post('/logout', (req, res) => {
   req.session.destroy((err) => {
     if (err) {
       console.error('Session destroy error:', err);
       return res.status(500).json({ error: 'Logout failed' });
     }
+    res.clearCookie(SESSION_COOKIE);
     res.json({ message: 'Logged out successfully' });
   });
 });
 
-// GET /api/gcal/rooms
-router.get('/rooms', async (req, res) => {
+// GET /api/gcal/me - Check if user is authenticated
+router.get('/me', (req, res) => {
+  if (!req.session.tokens) {
+    return res.status(401).json({ authenticated: false });
+  }
+  res.json({ authenticated: true, email: req.session.email });
+});
+
+// GET /api/gcal/availability?building=cory&date=YYYY-MM-DD
+router.get('/availability', async (req, res) => {
   const auth = getAuthenticatedClient(req);
   if (!auth) {
     return res.status(401).json({ error: 'Not authenticated. Please login first.' });
   }
 
-  const { building = 'cory', start, end } = req.query;
+  const { building, date } = req.query;
+  if (!ROOMS.some((r) => r.building === building)) {
+    return res.status(400).json({ error: 'Unknown building' });
+  }
+  if (!isValidDate(date)) {
+    return res.status(400).json({ error: 'Invalid date' });
+  }
 
   try {
-    const rooms = await searchAvailableRooms(auth, building, start, end);
-    res.json(rooms);
+    const slots = await getAvailableSlots(auth, building, date);
+    res.json({ email: req.session.email, slots });
   } catch (error) {
-    console.error('GET /rooms error:', error.message);
-    res.status(500).json({ error: 'Failed to fetch rooms' });
+    sendGoogleError(req, res, error, 'GET /availability');
   }
-});
-
-// GET /api/gcal/me - Check if user is authenticated
-router.get('/me', (req, res) => {
-  if (!req.session || !req.session.tokens) {
-    return res.status(401).json({ authenticated: false });
-  }
-  res.json({ authenticated: true });
 });
 
 // POST /api/gcal/book
@@ -253,12 +387,19 @@ router.post('/book', async (req, res) => {
     return res.status(401).json({ error: 'Not authenticated. Please login first.' });
   }
 
+  const body = req.body || {};
+  const room = ROOMS.find((r) => r.id === body.roomId);
+  const invalid = validateBooking(body, room);
+  if (invalid) {
+    return res.status(400).json({ error: invalid });
+  }
+
   try {
-    const result = await createCalendarBooking(auth, req.body);
+    const result = await createCalendarBooking(auth, room, body);
     res.json(result);
   } catch (error) {
-    console.error('POST /book error:', error.message);
-    res.status(500).json({ error: error.message });
+    sendGoogleError(req, res, error, 'POST /book');
   }
 });
+
 module.exports = router;
