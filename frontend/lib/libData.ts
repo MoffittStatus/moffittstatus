@@ -45,7 +45,13 @@ export function getSlugFromName(name: string): string {
     "Moffitt Library": "moffitt",
     "Doe Library": "doe",
     "Kresge Engineering Library": "kresge",
-    "Engineering & Mathematical Sciences Library": "kresge"
+    "Engineering & Mathematical Sciences Library": "kresge",
+    "Earth Sciences & Map Library": "earth_sciences",
+    "East Asian Library": "east_asian",
+    "Environmental Design Library": "environmental_design",
+    "Institute of Governmental Studies Library": "igs",
+    "Business Library": "business",
+    "Social Research Library": "social_research"
   };
 
   if (overrides[name]) return overrides[name];

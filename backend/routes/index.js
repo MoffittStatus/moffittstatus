@@ -4,6 +4,7 @@ const libraryRoutes = require('./library');
 const libcalRoutes = require('./libcal');
 const oskichatRoutes = require('./OskiChat');
 const analyticsRoutes = require('./analytics');
+const roomsRoutes = require('./room');
 const groupRoutes = require('./groups');
 const eventRoutes = require('./events');
 
@@ -14,8 +15,6 @@ router.use('/library', libraryRoutes);
 router.use('/libcal', libcalRoutes);
 router.use('/oskichat', oskichatRoutes);
 router.use('/analytics', analyticsRoutes);
-router.use('/groups', groupRoutes);
-router.use('/events', eventRoutes);
 
 
 module.exports = router;

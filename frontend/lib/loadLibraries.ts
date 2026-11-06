@@ -2,6 +2,8 @@
 import { getCurrentHourlyData } from "./gMapCapacities"
 import { getAllLibraryHours, getAvailableRooms } from "./libCal"
 import { getSlugFromName } from "./libData"
+import { SINGLE_SLUGS } from "./booking-utils"
+import { LibrarySlug } from "@/types/booking"
 
 function hoursFix (input:string) { 
     if (input.includes('Starts')){
@@ -35,8 +37,31 @@ function fixData (text:string){
       snacks: text.includes("snack")
     }
   }
-  
+  // In-memory cache variables across server requests
+let cachedLibrariesData: any = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds in milliseconds
 export const loadLibraries = async () => {
+  const now = Date.now();
+
+    // CHANGE 1: Return cached data ONLY if it is less than 60s old
+    if (cachedLibrariesData && (now - lastFetchTime < CACHE_TTL_MS)) {
+      return cachedLibrariesData;
+    }
+
+    // CHANGE 2: If expired, wait for fresh data BEFORE responding (blocking)
+    try {
+      const freshData = await fetchLibraryDataInternal();
+      cachedLibrariesData = freshData;
+      lastFetchTime = now;
+      return freshData;
+    } catch (error) {
+      return cachedLibrariesData || [];
+    }
+    
+  };
+
+  async function fetchLibraryDataInternal(){
     try {
       const [librariesResult] = await Promise.allSettled([ // , ratingsResult
         getAllLibraryHours()
@@ -75,7 +100,7 @@ export const loadLibraries = async () => {
           // Room Logic
           rooms: roomData,
           roomsOpen: roomData.length > 0 ? roomData.length : -1,
-          roomsTotal: slug == "main_stacks" || slug == "moffitt" || slug == "kresge" ? 1 : 0,
+          roomsTotal: SINGLE_SLUGS.includes(slug as LibrarySlug) ? 1 : 0,
           
           crowdLevel: crowdLevel,
           // weeklySchedule:scheduleMap[lib.name] || [],
@@ -89,11 +114,11 @@ export const loadLibraries = async () => {
   
       const processedData = await Promise.all(libraryPromises);
       
-      console.log("Processed Library Data:", processedData);
+      //console.log("Processed Library Data:", processedData);
       return processedData;
   
     } catch (error) {
       console.error("Failed to load library data", error);
       return [];
     }
-  };
+  }

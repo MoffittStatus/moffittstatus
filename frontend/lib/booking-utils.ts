@@ -1,6 +1,16 @@
 import { LibraryOption, LibrarySlug } from '@/types/booking';
 
-export const SINGLE_SLUGS: LibrarySlug[] = ["main_stacks", "moffitt", "kresge"];
+export const SINGLE_SLUGS: LibrarySlug[] = [
+  "main_stacks",
+  "moffitt",
+  "kresge",
+  "earth_sciences",
+  "east_asian",
+  "environmental_design",
+  "igs",
+  "business",
+  "social_research",
+];
 export const VALID_SLUGS: LibrarySlug[] = ["all", ...SINGLE_SLUGS];
 
 export const LIBRARIES: LibraryOption[] = [
@@ -8,6 +18,12 @@ export const LIBRARIES: LibraryOption[] = [
   { slug: "main_stacks", name: "Main (Gardner) Stacks" },
   { slug: "moffitt", name: "Moffitt Library" },
   { slug: "kresge", name: "Engineering & Mathematical Sciences Library" },
+  { slug: "business", name: "Business Library" },
+  { slug: "earth_sciences", name: "Earth Sciences & Map Library" },
+  { slug: "east_asian", name: "East Asian Library" },
+  { slug: "environmental_design", name: "Environmental Design Library" },
+  { slug: "igs", name: "Institute of Governmental Studies Library" },
+  { slug: "social_research", name: "Social Research Library" },
 ];
 
 export const SLUG_TO_NAME: Record<string, string> = LIBRARIES.reduce((acc, lib) => {

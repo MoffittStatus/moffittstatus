@@ -5,8 +5,8 @@ import React from "react";
 import { useState } from "react";
 import { StatusBadge } from "../../statusBadge";
 import { Clock } from "lucide-react";
-
-export default function DiscoveryLibraryDataSection({ data, onLibrarySelect }: { data: Library[], any }) {
+import Image from 'next/image';
+export default function DiscoveryLibraryDataSection({ data, onLibrarySelect }: { data: Library[], onLibrarySelect:any }) {
     const [libraryData, setLibraryData] = useState<Library[]>()
     React.useEffect(()=>{
         setLibraryData(data);
@@ -42,9 +42,10 @@ export default function DiscoveryLibraryDataSection({ data, onLibrarySelect }: {
                             >
                               <CardHeader className="p-0 [.border-b]:pb-6">
                                 <div className="relative h-20 w-full overflow-hidden rounded-[1.5rem]">
-                                  <img
-                                    src={lib.image}
+                                  <Image
+                                    src={lib.image!}
                                     alt={`${lib.name} exterior`}
+                                    fill
                                     className="h-full w-full object-cover"
                                   />
                                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/50 to-transparent pointer-events-none" />

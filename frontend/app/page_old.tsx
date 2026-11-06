@@ -77,6 +77,7 @@ export default function HeroSection() {
               alt="A view of the Campanile clock tower at UC Berkeley during sunset"
               width={450}
               height={600}
+              fill
               priority // Load this image first as it's above the fold
               className="rounded-2xl shadow-xl"
             />
