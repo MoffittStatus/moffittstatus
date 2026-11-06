@@ -1,4 +1,4 @@
-import { LibraryOption, LibrarySlug } from '@/types/booking';
+import { LibraryOption, LibrarySlug, RoomSlot } from '@/types/booking';
 
 export const SINGLE_SLUGS: LibrarySlug[] = [
   "main_stacks",
@@ -61,6 +61,31 @@ export const formatSlotRange12Hr = (timeSlotStr: string): string => {
   return parts.length === 2 
     ? `${format12HourTime(parts[0])} - ${format12HourTime(parts[1])}`
     : format12HourTime(timeSlotStr);
+};
+
+const slotEndTime = (slot: RoomSlot): string => slot.time.split(' - ')[1];
+
+// A request covers one continuous block of time. Clicking next to the block extends it, clicking an
+// end shrinks it, and clicking anywhere else starts a new block from that slot.
+export const toggleSlotInBlock = (block: RoomSlot[], slot: RoomSlot): RoomSlot[] => {
+  if (block.length === 0) return [slot];
+  const first = block[0];
+  const last = block[block.length - 1];
+  if (slot.rawStartTime === first.rawStartTime) return block.slice(1);
+  if (slot.rawStartTime === last.rawStartTime) return block.slice(0, -1);
+  if (slotEndTime(last) === slot.rawStartTime) return [...block, slot];
+  if (slotEndTime(slot) === first.rawStartTime) return [slot, ...block];
+  return [slot];
+};
+
+export const getBlockRange = (block: RoomSlot[]) => ({
+  startTime: block[0].rawStartTime,
+  endTime: slotEndTime(block[block.length - 1]),
+});
+
+export const formatBlockRange = (block: RoomSlot[]): string => {
+  const { startTime, endTime } = getBlockRange(block);
+  return formatSlotRange12Hr(`${startTime} - ${endTime}`);
 };
 
 export const formatDateKey = (dateObj: Date): string => 

@@ -49,6 +49,7 @@ export function createGcalBooking(bookingData: {
   roomId: string;
   date: string;
   startTime: string;
+  endTime: string;
   title: string;
   description: string;
   affiliation: string;

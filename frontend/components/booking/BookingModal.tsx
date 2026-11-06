@@ -18,15 +18,20 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useBooking } from '@/context/BookingContext';
 import { RoomSlot } from '@/types/booking';
-import { formatSlotRange12Hr, isGcalSlug } from '@/lib/booking-utils';
+import { formatBlockRange, formatSlotRange12Hr, getBlockRange, isGcalSlug, toggleSlotInBlock } from '@/lib/booking-utils';
 import { createGcalBooking, GcalBooking, GcalError } from '@/lib/gcal';
 
 const EMPTY_REQUEST = { title: '', description: '', affiliation: '', participants: '', speakers: '' };
 const fieldLabelClass = "text-xs font-bold text-slate-600";
 
 export const BookingModal = memo(() => {
-  const { bookingRoom: room, selectedDateKey, setBookingRoom, fetchRooms } = useBooking();
+  const { bookingRoom, selectedDateKey, setBookingRoom, fetchRooms, groupedRooms } = useBooking();
+  // Use the latest copy of the room so a refresh drops slots that were just taken
+  const room = bookingRoom && (
+    groupedRooms[bookingRoom.librarySlug]?.rooms.find((r) => r.id === bookingRoom.id) ?? bookingRoom
+  );
   const [selectedSlot, setSelectedSlot] = useState<RoomSlot | null>(null);
+  const [selectedBlock, setSelectedBlock] = useState<RoomSlot[]>([]);
   const [request, setRequest] = useState(EMPTY_REQUEST);
   const [submitting, setSubmitting] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
@@ -36,6 +41,7 @@ export const BookingModal = memo(() => {
   const roomId = room?.id;
   useEffect(() => {
     setSelectedSlot(null);
+    setSelectedBlock([]);
     setRequest(EMPTY_REQUEST);
     setRequestError(null);
     setBooking(null);
@@ -45,7 +51,7 @@ export const BookingModal = memo(() => {
 
   const isGcalRoom = isGcalSlug(room.librarySlug);
   const canRequest = Boolean(
-    selectedSlot && request.title.trim() && request.description.trim() && request.affiliation.trim() && request.participants
+    selectedBlock.length > 0 && request.title.trim() && request.description.trim() && request.affiliation.trim() && request.participants
   );
 
   const handleClose = () => setBookingRoom(null);
@@ -63,14 +69,14 @@ export const BookingModal = memo(() => {
   ) => setRequest((current) => ({ ...current, [field]: e.target.value }));
 
   const handleGcalRequest = async () => {
-    if (!selectedSlot) return;
+    if (selectedBlock.length === 0) return;
     setSubmitting(true);
     setRequestError(null);
     try {
       const result = await createGcalBooking({
         roomId: room.id,
         date: selectedDateKey,
-        startTime: selectedSlot.rawStartTime,
+        ...getBlockRange(selectedBlock),
         ...request,
       });
       setBooking(result);
@@ -85,8 +91,7 @@ export const BookingModal = memo(() => {
       }
       setRequestError(message);
       if (status === 409) {
-        setBookingRoom({ ...room, slots: room.slots.filter((s) => s !== selectedSlot) });
-        setSelectedSlot(null);
+        setSelectedBlock([]);
         fetchRooms(true);
       }
     } finally {
@@ -146,12 +151,15 @@ export const BookingModal = memo(() => {
         <div className="space-y-3 py-2">
           <div className="flex items-center justify-between">
             <Label className="text-xs font-bold text-slate-600 uppercase tracking-wider">
-              {isGcalRoom ? 'Select a Time Slot' : 'Select a Time Slot (Optional)'}
+              {isGcalRoom ? 'Select Time Slots' : 'Select a Time Slot (Optional)'}
             </Label>
-            {selectedSlot && (
+            {(selectedSlot || selectedBlock.length > 0) && (
               <Button
                 variant="link"
-                onClick={() => setSelectedSlot(null)}
+                onClick={() => {
+                  setSelectedSlot(null);
+                  setSelectedBlock([]);
+                }}
                 className="h-auto p-0 text-[11px] font-semibold text-indigo-600"
               >
                 Clear Selection
@@ -159,13 +167,42 @@ export const BookingModal = memo(() => {
             )}
           </div>
 
+          {isGcalRoom ? (
+            <div className="space-y-2">
+              <div role="group" aria-label="Time slots" className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
+                {room.slots.map((slot) => {
+                  const isSelected = selectedBlock.some((s) => s.rawStartTime === slot.rawStartTime);
+                  return (
+                    <button
+                      key={slot.rawStartTime}
+                      type="button"
+                      aria-pressed={isSelected}
+                      onClick={() => setSelectedBlock((block) => toggleSlotInBlock(block, slot))}
+                      className={`py-2.5 px-2 rounded-xl border text-xs font-bold cursor-pointer transition-all ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-600 text-white'
+                          : 'border-slate-200 text-slate-700 bg-slate-50/50 hover:bg-slate-100/60'
+                      }`}
+                    >
+                      {formatSlotRange12Hr(slot.time)}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="text-xs font-semibold text-slate-500">
+                {selectedBlock.length > 0
+                  ? `Selected: ${formatBlockRange(selectedBlock)}`
+                  : 'Pick as many slots in a row as you need.'}
+              </p>
+            </div>
+          ) : (
           <RadioGroup
             value={selectedSlot?.rawStartTime || ""}
             onValueChange={(val) => {
               const found = room.slots.find(s => s.rawStartTime === val);
               setSelectedSlot(found || null);
             }}
-            className={`space-y-2 overflow-y-auto pr-1 ${isGcalRoom ? 'max-h-36' : 'max-h-56'}`}
+            className="space-y-2 max-h-56 overflow-y-auto pr-1"
           >
             {room.slots.map((slot, index) => {
               const isSelected = selectedSlot?.rawStartTime === slot.rawStartTime;
@@ -197,6 +234,7 @@ export const BookingModal = memo(() => {
               );
             })}
           </RadioGroup>
+          )}
         </div>
 
         {isGcalRoom && (

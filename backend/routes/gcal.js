@@ -47,9 +47,10 @@ const TIME_ZONE = 'America/Los_Angeles';
 const ALLOWED_DOMAIN = 'berkeley.edu';
 const SESSION_COOKIE = 'ms_gcal_session';
 
-// Bookable window, split into one-hour slots
-const DAY_START_HOUR = 8;
-const DAY_END_HOUR = 22;
+// Bookable window in minutes after midnight, split into slots
+const DAY_START = 8 * 60;
+const DAY_END = 22 * 60;
+const SLOT_MINUTES = 30;
 
 // Google access tokens last an hour and we don't request refresh tokens, so the session ends with them
 const SESSION_MAX_AGE_MS = 55 * 60 * 1000;
@@ -64,7 +65,7 @@ function getOAuth2Client() {
   return new google.auth.OAuth2(
     process.env.GOOGLE_CLIENT_ID,
     process.env.GOOGLE_CLIENT_SECRET,
-    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:8000/api/gcal/oauth2callback'
+    process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3003/api/auth/callback/google'
   );
 }
 
@@ -92,9 +93,9 @@ function timeZoneOffsetMs(instant) {
   return asUtc - Math.floor(instant.getTime() / 1000) * 1000;
 }
 
-// Convert a Los Angeles wall-clock date and hour to the actual instant
-function campusTime(date, hour) {
-  const guess = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00Z`);
+// Convert a Los Angeles wall-clock date and minutes after midnight to the actual instant
+function campusTime(date, minutes) {
+  const guess = new Date(new Date(`${date}T00:00:00Z`).getTime() + minutes * 60 * 1000);
   const firstPass = new Date(guess.getTime() - timeZoneOffsetMs(guess));
   return new Date(guess.getTime() - timeZoneOffsetMs(firstPass));
 }
@@ -105,7 +106,17 @@ function isValidDate(date) {
   return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(date);
 }
 
-const pad = (hour) => String(hour).padStart(2, '0');
+const pad = (value) => String(value).padStart(2, '0');
+const toClock = (minutes) => `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+
+// "09:30" to minutes after midnight, or NaN if it isn't on a slot boundary
+function parseClock(value) {
+  const match = /^(\d{2}):(\d{2})$/.exec(value || '');
+  if (!match) return NaN;
+  const minutes = Number(match[1]) * 60 + Number(match[2]);
+  return minutes % SLOT_MINUTES === 0 ? minutes : NaN;
+}
+
 const overlaps = (busy, start, end) => new Date(busy.start) < end && new Date(busy.end) > start;
 
 // The UI strips parentheses from room names, so keep labels like "Hogan Room" outside of them
@@ -137,10 +148,10 @@ async function queryBusy(auth, rooms, timeMin, timeMax) {
   return busyByRoom;
 }
 
-// Free one-hour slots per room, in the same shape the LibCal rooms use so the booking UI can share them
+// Free slots per room, in the same shape the LibCal rooms use so the booking UI can share them
 async function getAvailableSlots(auth, building, date) {
   const rooms = ROOMS.filter((r) => r.building === building);
-  const busyByRoom = await queryBusy(auth, rooms, campusTime(date, DAY_START_HOUR), campusTime(date, DAY_END_HOUR));
+  const busyByRoom = await queryBusy(auth, rooms, campusTime(date, DAY_START), campusTime(date, DAY_END));
   if (busyByRoom.size === 0) {
     throw httpError(403, 'Could not read any room calendars with this account');
   }
@@ -151,15 +162,15 @@ async function getAvailableSlots(auth, building, date) {
     const busy = busyByRoom.get(room.id);
     if (!busy) continue;
 
-    for (let hour = DAY_START_HOUR; hour < DAY_END_HOUR; hour++) {
-      const start = campusTime(date, hour);
-      const end = campusTime(date, hour + 1);
+    for (let minutes = DAY_START; minutes < DAY_END; minutes += SLOT_MINUTES) {
+      const start = campusTime(date, minutes);
+      const end = campusTime(date, minutes + SLOT_MINUTES);
       if (start <= now || busy.some((b) => overlaps(b, start, end))) continue;
 
       slots.push({
         id: room.id,
         name: displayName(room),
-        time: `${date} ${pad(hour)}:00:00 - ${date} ${pad(hour + 1)}:00:00`,
+        time: `${date} ${toClock(minutes)}:00 - ${date} ${toClock(minutes + SLOT_MINUTES)}:00`,
         checksum: '',
         librarySlug: building,
       });
@@ -173,10 +184,11 @@ function validateBooking(body, room) {
   if (!room) return 'Unknown room';
   if (!isValidDate(body.date)) return 'Invalid date';
 
-  const match = /^(\d{2}):00$/.exec(body.startTime || '');
-  const hour = match ? Number(match[1]) : NaN;
-  if (!(hour >= DAY_START_HOUR && hour < DAY_END_HOUR)) return 'Invalid start time';
-  if (campusTime(body.date, hour) <= new Date()) return 'That time has already passed';
+  const startMinutes = parseClock(body.startTime);
+  const endMinutes = parseClock(body.endTime);
+  if (!(startMinutes >= DAY_START && startMinutes < DAY_END)) return 'Invalid start time';
+  if (!(endMinutes > startMinutes && endMinutes <= DAY_END)) return 'Invalid end time';
+  if (campusTime(body.date, startMinutes) <= new Date()) return 'That time has already passed';
 
   for (const field of ['title', 'description', 'affiliation']) {
     if (typeof body[field] !== 'string' || !body[field].trim()) return `Missing ${field}`;
@@ -195,9 +207,8 @@ function validateBooking(body, room) {
 
 // Create the event on the user's calendar and invite the room
 async function createCalendarBooking(auth, room, body) {
-  const hour = Number(body.startTime.slice(0, 2));
-  const start = campusTime(body.date, hour);
-  const end = campusTime(body.date, hour + 1);
+  const start = campusTime(body.date, parseClock(body.startTime));
+  const end = campusTime(body.date, parseClock(body.endTime));
 
   const busyByRoom = await queryBusy(auth, [room], start, end);
   const busy = busyByRoom.get(room.id);
@@ -205,7 +216,7 @@ async function createCalendarBooking(auth, room, body) {
     throw httpError(403, "Could not read this room's calendar with your account");
   }
   if (busy.some((b) => overlaps(b, start, end))) {
-    throw httpError(409, 'That slot was just taken. Please pick another time.');
+    throw httpError(409, 'That time was just taken. Please pick another time.');
   }
 
   const description =
@@ -264,7 +275,7 @@ router.get('/health', (req, res) => {
 });
 
 // Everything below needs Google credentials and a session
-router.use(isConfigured()
+const sessionMiddleware = isConfigured()
   ? session({
     name: SESSION_COOKIE,
     secret: process.env.SESSION_SECRET,
@@ -273,7 +284,9 @@ router.use(isConfigured()
     proxy: true, // deployed behind nginx
     cookie: { httpOnly: true, sameSite: 'lax', secure: 'auto', maxAge: SESSION_MAX_AGE_MS },
   })
-  : (req, res) => res.status(503).json({ error: 'Google Calendar booking is not set up on this server.' }));
+  : (req, res) => res.status(503).json({ error: 'Google Calendar booking is not set up on this server.' });
+
+router.use(sessionMiddleware);
 
 // GET /api/gcal/login - Initiate OAuth flow
 router.get('/login', (req, res) => {
@@ -296,8 +309,10 @@ router.get('/login', (req, res) => {
   res.redirect(authorizationUrl);
 });
 
-// GET /api/gcal/oauth2callback - Handle OAuth callback
-router.get('/oauth2callback', async (req, res) => {
+// GET /api/auth/callback/google - Handle OAuth callback, at the redirect URI registered with Google
+const callbackRouter = express.Router();
+callbackRouter.use(sessionMiddleware);
+callbackRouter.get('/', async (req, res) => {
   const { code, state, error } = req.query;
   const returnTo = safeReturnTo(req.session.returnTo);
   const expectedState = req.session.oauthState;
@@ -403,3 +418,4 @@ router.post('/book', async (req, res) => {
 });
 
 module.exports = router;
+module.exports.callbackRouter = callbackRouter;

@@ -15,5 +15,6 @@ router.use('/oskichat', oskichatRoutes);
 router.use('/analytics', analyticsRoutes);
 router.use('/rooms', roomsRoutes);
 router.use('/gcal', gcalRoutes);
+router.use('/auth/callback/google', gcalRoutes.callbackRouter);
 
 module.exports = router;
