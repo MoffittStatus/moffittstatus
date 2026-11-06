@@ -36,7 +36,8 @@ app.prepare().then(() => {
   try {
     const apiRoutes = require('../backend/routes');
     expressApp.use('/api', cors({
-      origin: ['http://localhost:3003', 'https://moffittstatus.asuc.org']
+      credentials: true, // Google sign-in session cookie for /api/gcal
+      origin: ['http://localhost:3003', 'https://moffittstatus.asuc.org', 'https://www.moffittstatus.asuc.org']
     }), apiRoutes);
   } catch (e) {
     console.log('Backend routes error:', e.message);

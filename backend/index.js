@@ -11,6 +11,7 @@ const PORT = process.env.PORT || 8000;
 
 // Middleware
 app.use(cors({
+  credentials: true, // Google sign-in session cookie for /api/gcal
   origin: [
     'http://localhost:3003',               // Local frontend
     'https://www.moffittstatus.asuc.org'   // Deployed frontend
