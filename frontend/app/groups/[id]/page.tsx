@@ -3,6 +3,8 @@
 import React, { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
+import OccurrenceRow from "@/components/events/OccurrenceRow";
+import { Occurrence, groupEvents, rsvp } from "@/lib/events";
 import {
   Group,
   GroupInvite,
@@ -29,6 +31,8 @@ const GroupPage: React.FC = () => {
   const [members, setMembers] = useState<GroupMember[]>([]);
   const [myRole, setMyRole] = useState<GroupRole | null>(null);
   const [invites, setInvites] = useState<GroupInvite[]>([]);
+  const [events, setEvents] = useState<Occurrence[]>([]);
+  const [showPast, setShowPast] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
@@ -46,10 +50,11 @@ const GroupPage: React.FC = () => {
       setMyRole(data.myRole);
       const manager = data.myRole === "OWNER" || data.myRole === "ADMIN";
       setInvites(manager ? await groupInvites(groupId) : []);
+      setEvents(await groupEvents(groupId, showPast ? "past" : "upcoming"));
     } catch (e) {
       setError(errorMessage(e));
     }
-  }, [groupId]);
+  }, [groupId, showPast]);
 
   useEffect(() => {
     load();
@@ -118,6 +123,33 @@ const GroupPage: React.FC = () => {
           </button>
         )}
       </div>
+
+      <section>
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+          <h2 className="text-xl font-semibold">{showPast ? "Past events" : "Upcoming events"}</h2>
+          <div className="flex gap-2 text-sm">
+            <button className="border rounded px-3 py-1" onClick={() => setShowPast(!showPast)}>
+              {showPast ? "Show upcoming" : "Show past"}
+            </button>
+            {isManager && (
+              <Link className="bg-[#003262] text-white rounded px-3 py-1" href={`/groups/${groupId}/events/new`}>
+                New event
+              </Link>
+            )}
+          </div>
+        </div>
+        {events.length === 0 && <p className="text-gray-500">{showPast ? "No past events." : "No upcoming events."}</p>}
+        <ul className="space-y-2 max-h-96 overflow-y-auto pr-1">
+          {events.map((o) => (
+            <OccurrenceRow
+              key={o.id}
+              occurrence={o}
+              showGroup={false}
+              onRsvp={(s) => run(() => rsvp(o.id, s))}
+            />
+          ))}
+        </ul>
+      </section>
 
       <section>
         <h2 className="text-xl font-semibold mb-2">Members ({members.length})</h2>

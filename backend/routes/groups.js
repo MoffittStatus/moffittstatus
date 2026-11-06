@@ -4,6 +4,14 @@ const rateLimit = require('express-rate-limit');
 const prisma = require('../lib/prisma');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { sendGroupInviteEmail } = require('../lib/mailer');
+const {
+  MANAGER_ROLES,
+  HttpError,
+  parseId,
+  activeMembership,
+  loadGroup,
+  requireRole,
+} = require('../lib/groupAccess');
 
 const router = express.Router();
 
@@ -13,7 +21,6 @@ const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 // matches enums
 const GROUP_TYPES = ['RSO', 'CASUAL'];
 const INVITABLE_ROLES = ['ADMIN', 'MEMBER'];
-const MANAGER_ROLES = ['OWNER', 'ADMIN'];
 
 const frontendUrl = () => (process.env.FRONTEND_URL || '').trim() || 'http://localhost:3003';
 
@@ -25,18 +32,6 @@ const inviteLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
-
-class HttpError extends Error {
-  constructor(status, message) {
-    super(message);
-    this.status = status;
-  }
-}
-
-function parseId(value) {
-  const id = Number(value);
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
 
 // Validates the editable group fields; `partial` allows omitting any of them (for PATCH)
 function parseGroupFields(body, { partial }) {
@@ -66,38 +61,6 @@ function parseGroupFields(body, { partial }) {
     data.type = body.type;
   }
   return data;
-}
-
-function activeMembership(groupId, userId) {
-  return prisma.groupMember.findFirst({
-    where: { groupId, userId, removedAt: null },
-  });
-}
-
-// Loads req.group and req.membership (the signed-in user's active membership, or null).
-// Private groups 404 for non-members so their existence isn't leaked.
-async function loadGroup(req, res, next) {
-  const groupId = parseId(req.params.id);
-  if (!groupId) return res.status(404).json({ error: 'Group not found' });
-
-  const group = await prisma.group.findUnique({ where: { id: groupId } });
-  if (!group) return res.status(404).json({ error: 'Group not found' });
-
-  req.membership = req.user ? await activeMembership(groupId, req.user.id) : null;
-  if (group.isPrivate && !req.membership && !req.user?.isAdmin) {
-    return res.status(404).json({ error: 'Group not found' });
-  }
-  req.group = group;
-  next();
-}
-
-function requireRole(...roles) {
-  return (req, res, next) => {
-    if (!req.membership || !roles.includes(req.membership.role)) {
-      return res.status(403).json({ error: 'You do not have permission. If you think this is an error, contact your group admin.' });
-    }
-    next();
-  };
 }
 
 async function addMember(tx, groupId, userId, role) {

@@ -22,6 +22,9 @@ model User {
   groupsCreated    Group[]       @relation("GroupCreatedBy")
   groupMemberships GroupMember[]
   groupInvitesSent GroupInvite[] @relation("GroupInviteCreatedBy")
+
+  eventsCreated Event[]         @relation("EventCreatedBy")
+  eventRsvps    EventAttendee[]
 }
 
 model Rating {
@@ -60,6 +63,7 @@ model Library {
   weeklySchedule Json?
   ratings        Rating[]
   logs           TrafficLog[]
+  events         Event[]
 }
 
 model TrafficLog {
@@ -129,6 +133,7 @@ model Group {
 
   members GroupMember[]
   invites GroupInvite[]
+  events  Event[]
 
   @@index([isPrivate])
 }
@@ -163,4 +168,75 @@ model GroupInvite {
 
   @@index([groupId, status])
   @@index([email, status])
+}
+
+enum EventVisibility {
+  PUBLIC
+  GROUP_ONLY
+}
+
+enum EventRecurrence {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+}
+
+enum RsvpStatus {
+  GOING
+  MAYBE
+  NOT_GOING
+}
+
+// The series. Each actual date lives in EventOccurrence.
+model Event {
+  id                  Int             @id @default(autoincrement())
+  groupId             Int
+  group               Group           @relation(fields: [groupId], references: [id])
+  name                String          @db.VarChar(255)
+  description         String?         @db.Text
+  visibility          EventVisibility @default(PUBLIC)
+  maxAttendees        Int? // per occurrence; null = unlimited
+  recurrence          EventRecurrence @default(NONE)
+  recurrenceEnd       DateTime?
+  libraryId           Int?
+  library             Library?        @relation(fields: [libraryId], references: [id])
+  locationDescription String?         @db.VarChar(255)
+  createdById         Int
+  createdBy           User            @relation("EventCreatedBy", fields: [createdById], references: [id])
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  deletedAt           DateTime? // soft delete so past occurrences and RSVPs stay in history
+
+  occurrences EventOccurrence[]
+
+  @@index([groupId])
+  @@index([visibility, deletedAt])
+}
+
+model EventOccurrence {
+  id          Int       @id @default(autoincrement())
+  eventId     Int
+  event       Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  startsAt    DateTime
+  endsAt      DateTime
+  cancelledAt DateTime?
+
+  attendees EventAttendee[]
+
+  @@index([eventId, startsAt])
+  @@index([startsAt])
+}
+
+model EventAttendee {
+  id           Int             @id @default(autoincrement())
+  occurrenceId Int
+  occurrence   EventOccurrence @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+  userId       Int
+  user         User            @relation(fields: [userId], references: [id])
+  rsvp         RsvpStatus
+  respondedAt  DateTime        @default(now())
+
+  @@unique([occurrenceId, userId]) // changing an RSVP updates the same row
+  @@index([userId])
 }
